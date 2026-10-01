@@ -289,18 +289,21 @@ export function resolveTenantFromHost(
   host: string | null | undefined,
 ): string | null {
   if (!host) return null;
-  // Strip the port, lowercase, and drop a leading www.
+  // Strip the port and lowercase.
   let name = host.trim().toLowerCase().split(":")[0];
   if (!name || name.includes("..")) return null;
   if (isIpLiteral(name)) return null;
-  if (name.startsWith("www.")) name = name.slice(4);
   const parts = name.split(".").filter(Boolean);
   // Need at least 3 labels (crm.acme.com) for a subdomain to exist.
   if (parts.length < 3) {
     return process.env.LOCALHOST_TENANT || null;
   }
-  // The subdomain is everything before the registrable domain.
-  return parts[0] || null;
+  if (parts[0] === "www") parts.shift();
+  // The tenant is the label immediately before the registrable domain, so
+  // `crm.acme.com` resolves to `acme` — the client, not the `crm` label the
+  // shared prefix. Stripping `www` after the split keeps `www.acme.com` at
+  // three labels so it resolves the same way.
+  return parts[parts.length - 2] || null;
 }
 ```
 
