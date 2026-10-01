@@ -422,8 +422,11 @@ UPDATE accounts SET slug = 'tenant-' || id::text WHERE slug IN (
 );
 
 -- Truncate anything the unconstrained backfill produced too long.
-UPDATE accounts SET slug = left(slug, 63)
-WHERE length(slug) > 63;
+-- Truncation is inlined in the backfill (left(base_slug, 63)) so the dedupe
+-- suffix is appended AFTER the cut. A separate truncate-after-the-fact pass
+-- like `UPDATE accounts SET slug = left(slug, 63) WHERE length(slug) > 63` is
+-- WRONG: it re-cuts a slug that already ends in "-2" and can re-create the
+-- collision the suffix exists to prevent. Do not add it.
 
 CREATE UNIQUE INDEX IF NOT EXISTS accounts_slug_key ON accounts(slug);
 
