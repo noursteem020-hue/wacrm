@@ -476,6 +476,7 @@ git commit -m "feat(tenant): add accounts.slug and tenants table"
 
 **Files:**
 - Create: `src/proxy.ts`
+- Create: `src/lib/tenant/header.ts`
 - Delete: `src/middleware.ts`
 - Test: `src/lib/tenant/proxy-header.test.ts`
 
