@@ -349,7 +349,7 @@ Run this first to establish the baseline (it should report 0):
 ```bash
 docker exec -i $(docker ps --filter "name=supabase_db_wacrm" --format "{{.Names}}" | head -1) \
   psql -U postgres -d postgres -t -A -c \
-  "select count(*) from information_schema.columns where table_name='accounts' and column_name='slug';"
+  "select count(*) from information_schema.columns where table_schema='public' and table_name='accounts' and column_name='slug';"
 ```
 
 Expected: `0`
@@ -377,30 +377,44 @@ Create `supabase/migrations/043_tenant_foundation.sql`:
 -- ---------- accounts.slug ----------
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS slug TEXT;
 
+-- Backfill any account that predates this migration.
 -- Backfill any account that predates this migration. The slug is derived
 -- from the account name, de-duplicated with a numeric suffix so the
 -- unique index below can never be violated.
+WITH normalized AS (
+  SELECT
+    a.id,
+    a.created_at,
+    -- NULLIF + COALESCE: a name with no usable characters ('   ', '***')
+    -- normalizes to nothing, which must become a stable fallback rather
+    -- than '' or NULL.
+    COALESCE(
+      NULLIF(
+        trim(BOTH '-' FROM regexp_replace(lower(a.name), '[^a-z0-9]+', '-', 'g')),
+        ''
+      ),
+      'tenant-' || a.id::text
+    ) AS base_slug
+  FROM accounts a
+  WHERE a.slug IS NULL
+),
+candidates AS (
+  SELECT
+    id,
+    left(base_slug, 63) AS capped_slug,
+    ROW_NUMBER() OVER (
+      PARTITION BY left(base_slug, 63)
+      ORDER BY created_at, id
+    ) AS n
+  FROM normalized
+)
 UPDATE accounts a
-SET slug = sub.slug
-FROM (
-  SELECT id,
-         ROW_NUMBER() OVER (
-           PARTITION BY regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g')
-           ORDER BY created_at, id
-         )::text
-           || CASE WHEN ROW_NUMBER() OVER (
-                      PARTITION BY regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g')
-                      ORDER BY created_at, id
-                    ) > 1
-                  THEN '-' || ROW_NUMBER() OVER (
-                         PARTITION BY regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g')
-                         ORDER BY created_at, id
-                       )::text
-                  ELSE '' END AS slug
-  FROM accounts
-  WHERE slug IS NULL
-) sub
-WHERE a.id = sub.id AND a.slug IS NULL;
+SET slug = CASE
+             WHEN c.n = 1 THEN c.capped_slug
+             ELSE left(c.capped_slug, 63 - length('-' || c.n::text)) || '-' || c.n::text
+           END
+FROM candidates c
+WHERE a.id = c.id AND a.slug IS NULL;
 
 -- Reserved words can never be handed to an account.
 UPDATE accounts SET slug = 'tenant-' || id::text WHERE slug IN (
