@@ -496,11 +496,21 @@ Expected: all 43 migrations present, no errors, existing data untouched.
 docker exec -i $(docker ps --filter "name=supabase_db_wacrm" --format "{{.Names}}" | head -1) \
   psql -U postgres -d postgres -t -A -c \
   "select count(*) from information_schema.columns where table_name='accounts' and column_name='slug';
-   select count(*) from information_schema.tables where table_name='tenants';
+   select count(*) from information_schema.tables where table_name='tenants' and table_schema='public';
    select count(*) from accounts where slug is null;"
 ```
 
 Expected: `1`, `1`, `0` — the last one is the important one: no account left without a slug.
+
+`table_schema='public'` is REQUIRED on the `tenants` query. Supabase ships its own
+`_realtime.tenants` base table, so the unfiltered query returns **2** where this
+line demands **1** — a false failure on a correct database. Verified:
+```
+plan form (no schema filter) -> 2    (_realtime.tenants, public.tenants)
+with table_schema='public'   -> 1
+```
+Task 3 Step 1 already filters on the schema; this step did not, which made the two
+inconsistent.
 
 - [ ] **Step 5: Verify idempotency by running the file twice**
 
@@ -583,7 +593,7 @@ describe("withTenantHeader", () => {
 
 Run: `npx vitest run src/lib/tenant/proxy-header.test.ts`
 
-Expected: FAIL — `Cannot find module '../tenant/header'`
+Expected: FAIL — `Cannot find module './header'` (the test at plan line ~555 imports `"./header"` from `src/lib/tenant/`, so the RED message names that specifier; an earlier draft expected `../tenant/header`, which contradicts its own import)
 
 - [ ] **Step 4: Create `src/lib/tenant/header.ts`**
 
@@ -643,6 +653,39 @@ withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host
 4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code **and the three proxy-level steps this plan does not reproduce: its 2b and 2c tests, and its 2d mutation checks**. Step 2b proves the header is overwritten on the forwarded request; step 2c proves it survives the `setAll` rebuild. Without those tests the Definition of Done item "a client-sent value is overwritten" cannot be satisfied.
 
    Applying the same substitution at both sites is WRONG and reintroduces issue #288: `requestHeaders` is snapshotted before `createServerClient` runs, so the `setAll` site would forward a pre-rotation cookie. This was proven by execution during review.
+
+**These requirements are stated HERE, in the tracked plan, because the Task 4
+brief is gitignored (`.superpowers/sdd/.gitignore` ignores `*`) and does not
+survive a clone. A plan-only reader must be able to implement and prove this. The
+brief may elaborate; it may not be the sole home of anything load-bearing.
+
+The assertions that make this behavior provable — carried here in full:
+
+- Capture **every** call to `NextResponse.next` and assert on each one
+  individually. `capturedCalls.some(...)` is forbidden: it is satisfied by the
+  clean first call while the post-rotation call carries the attacker header.
+- In a scenario that arranges a rotation, assert the captured count is exactly 2
+  (initial + the `setAll` rebuild) **first**. The mock is
+  `if (refreshedCookies.length) opts.cookies.setAll(refreshedCookies)`, so if
+  rotation does not fire only one call is captured and "assert on every captured
+  call" degenerates into a pass over one clean call — the defect present, the
+  test green. Do NOT put this count guard on a test that deliberately does not
+  rotate; such a test asserts 1 and does not claim `setAll` coverage.
+- Seed the request with a pre-existing cookie (`sb-test-auth-token=PRE-ROTATION`)
+  so a **stale** forwarded cookie is distinguishable from an absent one. Then:
+  `captured[0]` carries `PRE-ROTATION` and must NOT contain `ROTATED`;
+  `captured[1]` must contain `ROTATED`. The two calls cannot both carry the
+  rotated value — call #1 is built before `getUser()` runs.
+- Assert the tenant header on **both** calls: `"acme"` for a mapped host, and
+  **no `x-tenant-slug` at all** for a host the resolver cannot map (fail closed).
+- Prove the tests fail when the code is broken. Before committing, run these three
+  mutations and record the exact failure output: (1) revert the `setAll`
+  re-snapshot; (2) delete `withTenantHeader` from the `setAll` rebuild only;
+  (3) remove the `null` handling so a `null` slug is written through — note
+  `Headers.set(name, null)` writes the string `"null"`, it does not restore the
+  client's value. Restore the code and re-confirm green. If a mutation does not
+  fail a test, report it as a finding — never weaken the assertion to let it
+  survive.
 
    There are **two** occurrences. **Do not trust line numbers from this plan** — the rename and the import block add lines above them, and repeated attempts to compute the post-edit numbers disagreed. Verify the count and locations yourself, against the file that exists at this point in the sequence (`src/proxy.ts`, after the `git mv`):
       ```bash
