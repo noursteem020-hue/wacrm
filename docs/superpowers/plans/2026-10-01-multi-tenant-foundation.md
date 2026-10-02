@@ -639,10 +639,10 @@ withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host
 
    Applying the same substitution at both sites is WRONG and reintroduces issue #288: `requestHeaders` is snapshotted before `createServerClient` runs, so the `setAll` site would forward a pre-rotation cookie. This was proven by execution during review.
 
-   There are **two** occurrences, at `src/middleware.ts:5` and `:17`. An earlier draft of this plan said "three", which was wrong; verify the count yourself rather than trusting this number:
-   ```bash
-   grep -n "NextResponse.next" src/proxy.ts
-   ```
+   There are **two** occurrences. **Do not trust line numbers from this plan** — the rename and the import block add lines above them, and repeated attempts to compute the post-edit numbers disagreed. Verify the count and locations yourself, against the file that exists at this point in the sequence (`src/proxy.ts`, after the `git mv`):
+      ```bash
+      grep -n "NextResponse.next" src/proxy.ts
+      ```
 
 The `cookies.setAll` callback rewrites `supabaseResponse`, so it must carry the tenant header — which is why it re-snapshots rather than reusing the top-of-function copy.
 
