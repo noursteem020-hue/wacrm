@@ -716,6 +716,16 @@ npm run dev
 
 Then in a browser: log in at `http://localhost:3000/login`, land on `/dashboard`, open `/contacts`. All three must render as before. This is the gate for the whole task — the session-refresh logic was moved verbatim and a silent break here logs out every user.
 
+**Credentials:** never request, accept, read, or store a password, token, or `.env`
+value, and never paste one into the report — the account owner holds them and
+drives that login themselves. If no authorized authenticated path is available,
+record this gate **NOT VERIFIED** with the reason. It is not satisfied by
+`/login` returning 200, and it is never satisfied by a mocked session.
+
+**Do NOT add a fallback in `resolve.ts`.** Task 4 changes the proxy, not the
+resolver; a fallback there would reintroduce the `"default"` tenant this plan
+forbids and break Task 2's accepted behavior.
+
 - [ ] **Step 8: Run the full suite**
 
 Run: `npm test`
@@ -933,5 +943,5 @@ Check every box before opening a PR.
 - [ ] Isolation verification output recorded in the spec
 - [ ] `accounts.slug` has no NULL rows
 - [ ] `tenants` table exists with RLS enabled
-- [ ] No proxy code queries Supabase or selects a database
+- [ ] **No TENANT lookup is added to the proxy.** Precisely: the proxy must not select from `accounts` or `tenants`, must not resolve a tenant from the database, and must not issue any query beyond the pre-existing `createServerClient` / `getUser` session refresh. Do NOT tick this box by asserting "the proxy does not query Supabase" — it does, for auth, and always did; that phrasing is false and contradicts the constraint at the top of this plan.
 - [ ] A PR is open on `noursteem020-hue/wacrm` targeting `main`
