@@ -538,7 +538,9 @@ git commit -m "feat(tenant): add accounts.slug and tenants table"
 - Delete: `src/middleware.ts`
 - Test: `src/lib/tenant/proxy-header.test.ts`
 - **Rename: `src/middleware.test.ts` → `src/proxy.test.ts`** — REQUIRED, not optional.
-  `src/middleware.test.ts:41` is a **top-level** `await import("./middleware")`, so renaming
+  `src/middleware.test.ts` ends in a **top-level** `await import("./middleware")`
+  (find it with `grep -n 'await import' src/middleware.test.ts`; do not trust a line
+  number, as the steps below add lines), so renaming
   `src/middleware.ts` without renaming this file kills **all 15 tests** at collection time,
   not one. An earlier draft of this plan omitted it entirely; that omission was found in
   review and is the single most consequential defect this task ever had.
