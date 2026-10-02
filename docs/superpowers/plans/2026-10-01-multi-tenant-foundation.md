@@ -14,7 +14,7 @@
 
 - Slug rules are fixed: lowercase letters, digits, `-`; must start and end alphanumeric; 3–63 chars; no consecutive hyphens. No other character is permitted anywhere.
 - Reserved slugs are exactly: `www, api, admin, mail, app, crm, smtp, ftp, dev, staging, test`.
-- `LOCALHOST_TENANT` is read only by the resolver and is **unset by default**; the resolver then returns `null`. An earlier draft of this plan said it "defaults to `default`", which contradicted the review focus below and is withdrawn. See the Task 4 note on how localhost gets a tenant.
+- `LOCALHOST_TENANT` is read only by the resolver and is **unset by default**; the resolver then returns `null`. An earlier draft of this plan said it "defaults to `default`", which contradicted the review focus below and is withdrawn. **How localhost gets a tenant:** set `LOCALHOST_TENANT` in `.env.local` (gitignored) to the slug you want local requests to resolve to, e.g. `LOCALHOST_TENANT=nour-abbass`. There is no code fallback — with it unset, bare `localhost`, a raw IP, or a malformed host all resolve to `null` and the proxy fails closed. `.env.local` is optional: without it, local requests simply carry no tenant header.
 - The proxy MUST NOT query Postgres, MUST NOT read `x-tenant-slug` from the client as authority, and MUST NOT select from `accounts` or `tenants`. It reads the request hostname and writes one header. The pre-existing `createServerClient` / `getUser` session-refresh call is not a tenant lookup and is out of scope.
 - The existing Supabase session-refresh body of `src/middleware.ts` moves **verbatim**. No refactor, no "while I'm here."
 - Migration file is `supabase/migrations/043_tenant_foundation.sql`, must be idempotent, and must not use `NOT NULL` on the new column in the same statement that adds it.
@@ -495,7 +495,7 @@ Expected: all 43 migrations present, no errors, existing data untouched.
 ```bash
 docker exec -i $(docker ps --filter "name=supabase_db_wacrm" --format "{{.Names}}" | head -1) \
   psql -U postgres -d postgres -t -A -c \
-  "select count(*) from information_schema.columns where table_name='accounts' and column_name='slug';
+  "select count(*) from information_schema.columns where table_name='accounts' and table_schema='public' and column_name='slug';
    select count(*) from information_schema.tables where table_name='tenants' and table_schema='public';
    select count(*) from accounts where slug is null;"
 ```
@@ -652,7 +652,7 @@ const requestHeaders = new Headers(request.headers);
 withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host")));
 ```
 
-4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code **and the three proxy-level steps this plan does not reproduce: its 2b and 2c tests, and its 2d mutation checks**. Step 2b proves the header is overwritten on the forwarded request; step 2c proves it survives the `setAll` rebuild. Without those tests the Definition of Done item "a client-sent value is overwritten" cannot be satisfied.
+4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code **and this step's three proxy-level checks in more detail: the 2b and 2c tests and the 2d mutation checks, all reproduced in this plan's step below.** Step 2b proves the header is overwritten on the forwarded request; step 2c proves it survives the `setAll` rebuild. Without those tests the Definition of Done item "a client-sent value is overwritten" cannot be satisfied.
 
    Applying the same substitution at both sites is WRONG and reintroduces issue #288: `requestHeaders` is snapshotted before `createServerClient` runs, so the `setAll` site would forward a pre-rotation cookie. This was proven by execution during review.
 
@@ -680,6 +680,18 @@ The assertions that make this behavior provable — carried here in full:
   rotated value — call #1 is built before `getUser()` runs.
 - Assert the tenant header on **both** calls: `"acme"` for a mapped host, and
   **no `x-tenant-slug` at all** for a host the resolver cannot map (fail closed).
+  **The fail-closed request MUST be seeded with a client-supplied
+  `x-tenant-slug: "attacker-tenant"`.** Without that seed the assertion is
+  vacuous — nothing sent the header and nothing deleted it, so "no header" holds
+  trivially and passes even when the proxy never removes an attacker header.
+  Measured against a defect at the proxy call site (`if (slug) withTenantHeader(…)`,
+  so a `null` slug is ignored instead of deleting):
+  ```
+  plan text without the attacker seed ->  2 passed   (defect survives)
+  with the attacker seed              ->  3 failed   (defect caught)
+  ```
+  So: seed `attacker-tenant`, then assert **both** calls are free of
+  `x-tenant-slug`. That seed is what makes the fail-closed assertion falsifiable.
 - Prove the tests fail when the code is broken. Before committing, run these three
   mutations and record the exact failure output: (1) revert the `setAll`
   re-snapshot; (2) delete `withTenantHeader` from the `setAll` rebuild only;
