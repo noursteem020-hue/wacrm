@@ -26,9 +26,9 @@
 The spec is a vision document; these input classes it does not pin are the ones most likely to bite a real user. Each has a test in the task that owns the code.
 
 1. **Stale/hostile `x-tenant-slug` header from the client.** A user can send any header they like. If proxy trusts it, isolation is bypassed. → Task 4 tests that the header is always overwritten, never read.
-2. **Slug collision at creation time.** Two accounts wanting `acme` — the second must fail loudly, never silently take the first's slug. → Task 3 tests the unique index rejects a duplicate.
-3. **Unknown or absent hostname** (`localhost`, raw IP, garbage `Host`). Must degrade to "unknown tenant", never to a default account's data. → Task 3 tests `null` input returns no slug.
-4. **`www.` prefixed and uppercase hostnames.** `CRM.Acme.com` must resolve identically to `crm.acme.com`. → Task 3 tests case-folding and `www.` stripping.
+2. **Slug collision at creation time.** Two accounts wanting `acme` — the second must fail loudly, never silently take the first's slug. → Task 6 verifies the unique index rejects a duplicate. (An earlier draft said Task 3, which has no test file and performs no such check.)
+3. **Unknown or absent hostname** (`localhost`, raw IP, garbage `Host`). Must degrade to "unknown tenant", never to a default account's data. → Task 2 tests `null` input returns no slug (`resolve.test.ts`).
+4. **`www.` prefixed and uppercase hostnames.** `CRM.Acme.com` must resolve identically to `crm.acme.com`. → Task 2 tests case-folding and `www.` stripping (`resolve.test.ts`).
 5. **Account with no slug yet** (created by the `handle_new_user` trigger between migration and backfill). Must not crash the proxy. → Task 3 tests the resolver never throws on any input.
 
 ---
