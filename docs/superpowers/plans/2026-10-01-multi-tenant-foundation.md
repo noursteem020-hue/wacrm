@@ -618,9 +618,12 @@ const requestHeaders = new Headers(request.headers);
 withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host")));
 ```
 
-4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` in **all three** places it appears in the file.
+4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every** occurrence in the file. As of this writing there are exactly **two**, at `src/middleware.ts:5` and `src/middleware.ts:17` — an earlier draft of this plan said "three", which was wrong; verify the count yourself rather than trusting this number:
+   ```bash
+   grep -n "NextResponse.next" src/middleware.ts
+   ```
 
-The `cookies.setAll` callback rewrites `supabaseResponse`, so it must carry the same modified headers — that is why all three occurrences change.
+The `cookies.setAll` callback rewrites `supabaseResponse`, so it must carry the same modified headers — that is why every occurrence changes.
 
 - [ ] **Step 7: Verify the app still boots and the session still refreshes**
 
