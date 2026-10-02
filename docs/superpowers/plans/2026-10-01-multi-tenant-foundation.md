@@ -14,8 +14,8 @@
 
 - Slug rules are fixed: lowercase letters, digits, `-`; must start and end alphanumeric; 3–63 chars; no consecutive hyphens. No other character is permitted anywhere.
 - Reserved slugs are exactly: `www, api, admin, mail, app, crm, smtp, ftp, dev, staging, test`.
-- `LOCALHOST_TENANT` defaults to `"default"` and is read only by the resolver.
-- The proxy MUST NOT query Supabase, MUST NOT read `x-tenant-slug` from the client as authority, and MUST NOT select a database. It reads the request hostname and writes one header.
+- `LOCALHOST_TENANT` is read only by the resolver and is **unset by default**; the resolver then returns `null`. An earlier draft of this plan said it "defaults to `default`", which contradicted the review focus below and is withdrawn. See the Task 4 note on how localhost gets a tenant.
+- The proxy MUST NOT query Postgres, MUST NOT read `x-tenant-slug` from the client as authority, and MUST NOT select from `accounts` or `tenants`. It reads the request hostname and writes one header. The pre-existing `createServerClient` / `getUser` session-refresh call is not a tenant lookup and is out of scope.
 - The existing Supabase session-refresh body of `src/middleware.ts` moves **verbatim**. No refactor, no "while I'm here."
 - Migration file is `supabase/migrations/043_tenant_foundation.sql`, must be idempotent, and must not use `NOT NULL` on the new column in the same statement that adds it.
 - Existing suite must remain green: 1073/1073 across 91 files. `tsc --noEmit` and ESLint clean.
