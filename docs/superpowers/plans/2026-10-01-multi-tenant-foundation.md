@@ -639,7 +639,7 @@ const requestHeaders = new Headers(request.headers);
 withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host")));
 ```
 
-4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code **and the two proxy-level tests (its steps 2b and 2c) that this plan does not reproduce**. Step 2b proves the header is overwritten on the forwarded request; step 2c proves it survives the `setAll` rebuild. Without those tests the Definition of Done item "a client-sent value is overwritten" cannot be satisfied.
+4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code **and the three proxy-level steps this plan does not reproduce: its 2b and 2c tests, and its 2d mutation checks**. Step 2b proves the header is overwritten on the forwarded request; step 2c proves it survives the `setAll` rebuild. Without those tests the Definition of Done item "a client-sent value is overwritten" cannot be satisfied.
 
    Applying the same substitution at both sites is WRONG and reintroduces issue #288: `requestHeaders` is snapshotted before `createServerClient` runs, so the `setAll` site would forward a pre-rotation cookie. This was proven by execution during review.
 
@@ -662,7 +662,7 @@ Then in a browser: log in at `http://localhost:3000/login`, land on `/dashboard`
 
 Run: `npm test`
 
-Expected: zero failures, with the 15 tests from `middleware.test.ts` still present under their new name. **Do not hardcode totals here** — an earlier draft asserted "1073 + 26 = 1099", which was stale (measured baseline on this branch: 93 files, 1096 tests) and also miscounted the header tests, which are 4 rather than 3. Record the counts you actually observe.
+Expected: zero failures, with the 15 tests from `middleware.test.ts` still present under their new name. **Do not hardcode totals here** — an earlier draft asserted a fixed arithmetic total, which was stale and also miscounted the header tests (there are 4, not 3). Record the counts you actually observe.
 
 - [ ] **Step 9: Commit**
 
@@ -718,10 +718,17 @@ WHERE pronamespace = 'public'::regnamespace
 ORDER BY proname;
 
 \echo '=== 4. no data table bypasses is_account_member ==='
+-- `cmd = 'SELECT'` is REQUIRED and was missing. Without it this returns 4 and
+-- triggers a false stop-the-line: INSERT/UPDATE policies carry their check in
+-- `with_check` and have `qual = NULL` by construction, so they match
+-- `qual IS NULL` without being a bypass of the SELECT policy. Verified:
+--   as written here (no cmd filter) -> 4   (all four are *_insert)
+--   with AND cmd = 'SELECT'         -> 0
 SELECT count(*) AS tables_with_other_policy
 FROM pg_policies
 WHERE schemaname = 'public'
   AND tablename IN ('contacts', 'deals', 'conversations', 'automations')
+  AND cmd = 'SELECT'
   AND (qual IS NULL OR qual NOT LIKE '%is_account_member%');
 ```
 
@@ -767,6 +774,22 @@ VALUES
   'authenticated','authenticated','00000000-0000-0000-0000-000000000000', now(), now());
 UPDATE accounts SET slug = 'iso-a' WHERE name = 'Iso A' AND slug IS NULL;
 UPDATE accounts SET slug = 'iso-b' WHERE name = 'Iso B' AND slug IS NULL;
+
+-- One contact per tenant. Without these, the isolation assertion below reads an
+-- empty set and cannot fail: an earlier draft created only accounts, so "only
+-- iso-a's contacts appear" was unfalsifiable because there were no contacts at
+-- all. `contacts.user_id` and `contacts.account_id` are both NOT NULL, and
+-- `contacts.id` defaults to `uuid_generate_v4()` — supply gen_random_uuid()
+-- explicitly, since that function is the one that fails on hosted Supabase.
+-- Verified by execution (then rolled back): iso-a | Contact A, iso-b | Contact B.
+INSERT INTO contacts (id, user_id, account_id, phone, name)
+SELECT gen_random_uuid(), u.id, a.id, '+10000000001', 'Contact A'
+  FROM auth.users u JOIN accounts a ON a.owner_user_id = u.id
+ WHERE u.email = 'iso-a@probe.local';
+INSERT INTO contacts (id, user_id, account_id, phone, name)
+SELECT gen_random_uuid(), u.id, a.id, '+10000000002', 'Contact B'
+  FROM auth.users u JOIN accounts a ON a.owner_user_id = u.id
+ WHERE u.email = 'iso-b@probe.local';
 ```
 
 Then, with the browser signed in as the owner of `iso-a`:
