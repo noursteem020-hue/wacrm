@@ -593,7 +593,7 @@ describe("withTenantHeader", () => {
 
 Run: `npx vitest run src/lib/tenant/proxy-header.test.ts`
 
-Expected: FAIL — `Cannot find module './header'` (the test at plan line ~555 imports `"./header"` from `src/lib/tenant/`, so the RED message names that specifier; an earlier draft expected `../tenant/header`, which contradicts its own import)
+Expected: FAIL — `Cannot find module './header'` — the test block above imports `{ TENANT_HEADER, withTenantHeader }` from `"./header"`, so the RED message names that specifier. An earlier draft expected `../tenant/header`, which contradicts its own import. Confirm by reading the import line in the block above, not by trusting a line number.
 
 - [ ] **Step 4: Create `src/lib/tenant/header.ts`**
 
