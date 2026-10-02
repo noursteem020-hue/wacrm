@@ -45,6 +45,7 @@ The spec is a vision document; these input classes it does not pin are the ones 
 | `src/lib/tenant/resolve.test.ts` | Unit tests for the above |
 | `src/lib/tenant/isolation.sql` | Verification SQL: proves `is_account_member` isolates two accounts. **Not** a vitest file. |
 | `src/proxy.ts` | Replaces `src/middleware.ts`. Session refresh (verbatim) + tenant header. |
+| `src/proxy.test.ts` | Renamed from `src/middleware.test.ts`. Holds its 15 tests plus the new proxy-level header and session-refresh tests (brief steps 2b, 2c). |
 | `src/lib/tenant/proxy-header.test.ts` | Asserts header is overwritten, not trusted |
 
 `src/lib/tenant/` groups all three modules so they move together. The migration sits with the other 42. The SQL verification file is separate because vitest cannot run SQL.
