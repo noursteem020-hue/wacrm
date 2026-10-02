@@ -618,12 +618,16 @@ const requestHeaders = new Headers(request.headers);
 withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host")));
 ```
 
-4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every** occurrence in the file. As of this writing there are exactly **two**, at `src/middleware.ts:5` and `src/middleware.ts:17` — an earlier draft of this plan said "three", which was wrong; verify the count yourself rather than trusting this number:
+4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code.
+
+   Applying the same substitution at both sites is WRONG and reintroduces issue #288: `requestHeaders` is snapshotted before `createServerClient` runs, so the `setAll` site would forward a pre-rotation cookie. This was proven by execution during review.
+
+   There are **two** occurrences, at `src/middleware.ts:5` and `:17`. An earlier draft of this plan said "three", which was wrong; verify the count yourself rather than trusting this number:
    ```bash
    grep -n "NextResponse.next" src/middleware.ts
    ```
 
-The `cookies.setAll` callback rewrites `supabaseResponse`, so it must carry the same modified headers — that is why every occurrence changes.
+The `cookies.setAll` callback rewrites `supabaseResponse`, so it must carry the tenant header — which is why it re-snapshots rather than reusing the top-of-function copy.
 
 - [ ] **Step 7: Verify the app still boots and the session still refreshes**
 
