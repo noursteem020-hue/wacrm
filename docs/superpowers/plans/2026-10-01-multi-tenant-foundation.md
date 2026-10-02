@@ -526,6 +526,11 @@ git commit -m "feat(tenant): add accounts.slug and tenants table"
 - Create: `src/lib/tenant/header.ts`
 - Delete: `src/middleware.ts`
 - Test: `src/lib/tenant/proxy-header.test.ts`
+- **Rename: `src/middleware.test.ts` → `src/proxy.test.ts`** — REQUIRED, not optional.
+  `src/middleware.test.ts:41` is a **top-level** `await import("./middleware")`, so renaming
+  `src/middleware.ts` without renaming this file kills **all 15 tests** at collection time,
+  not one. An earlier draft of this plan omitted it entirely; that omission was found in
+  review and is the single most consequential defect this task ever had.
 
 **Interfaces:**
 - Consumes: `resolveTenantFromHost(host)` from Task 2
@@ -601,6 +606,18 @@ Run: `npx vitest run src/lib/tenant/proxy-header.test.ts`
 
 Expected: PASS, 3 tests
 
+- [ ] **Step 5b: Rename the test file (required).**
+
+```bash
+git mv src/middleware.test.ts src/proxy.test.ts
+```
+
+Do NOT change its `await import("./middleware")` yet — the export is still named
+`middleware` until Step 6.1 renames it. Update the import only after Step 6.1:
+`const { proxy } = await import("./proxy");`, and change all five call sites of
+`middleware(` to `proxy(`. Doing it in the other order imports `undefined` and the
+tests fail in a way that looks like a broken assertion rather than a rename mistake.
+
 - [ ] **Step 6: Rename the entry point and add tenant resolution**
 
 ```bash
@@ -624,7 +641,7 @@ withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host
 
    There are **two** occurrences, at `src/middleware.ts:5` and `:17`. An earlier draft of this plan said "three", which was wrong; verify the count yourself rather than trusting this number:
    ```bash
-   grep -n "NextResponse.next" src/middleware.ts
+   grep -n "NextResponse.next" src/proxy.ts
    ```
 
 The `cookies.setAll` callback rewrites `supabaseResponse`, so it must carry the tenant header — which is why it re-snapshots rather than reusing the top-of-function copy.
@@ -646,7 +663,7 @@ Expected: 1073 + 26 passing (13 slug + 10 resolve + 3 header), zero failures.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/proxy.ts src/lib/tenant/header.ts src/lib/tenant/proxy-header.test.ts
+git add src/proxy.ts src/proxy.test.ts src/lib/tenant/header.ts src/lib/tenant/proxy-header.test.ts
 git commit -m "refactor(next): rename middleware to proxy and set tenant header"
 ```
 
