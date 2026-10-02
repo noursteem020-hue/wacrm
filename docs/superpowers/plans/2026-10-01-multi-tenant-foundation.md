@@ -466,12 +466,28 @@ EXECUTE FUNCTION public.set_tenants_updated_at();
 
 - [ ] **Step 3: Apply it locally**
 
+> **DO NOT run `supabase db reset` on the local database.** It is destructive by
+> definition, and while it holds the only copy of the session fixtures, a reset
+> destroys them with no undo. This step, not the migration, was the actual cause
+> of a data loss in this project. Verify the fresh-schema path without
+> destruction instead: drop the target objects inside a transaction you roll
+> back, run the file, assert, roll back.
+
 ```bash
 cd C:/Users/FX-tec/Desktop/wacrm-work
-supabase db reset
+# Non-destructive equivalent of a clean-slate check.
+docker exec -i $(docker ps --filter "name=supabase_db_wacrm" --format "{{.Names}}" | head -1) \
+  psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - <<'SQL'
+BEGIN;
+DROP TABLE IF EXISTS public.tenants CASCADE;
+ALTER TABLE public.accounts DROP COLUMN IF EXISTS slug;
+SQL
 ```
 
-Expected: all 43 migrations applied, no errors.
+Then apply the file normally, re-run it to prove idempotency, and confirm the
+rollback left the schema and data exactly as they were.
+
+Expected: all 43 migrations present, no errors, existing data untouched.
 
 - [ ] **Step 4: Verify the migration landed**
 

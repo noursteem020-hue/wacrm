@@ -110,9 +110,14 @@ BEGIN
       -- Slot j of a family: j = 1 is the bare base, j >= 2 is the base
       -- truncated to leave room for '-j'. rtrim() drops a hyphen the
       -- truncation cut exposed, so no slot can contain '--'.
-      -- 64 slots per family is far more than any real family consumes; a
-      -- row whose entire family is saturated is left NULL for the
-      -- provisioning path rather than blocking the loop.
+      -- 64 slots per family is far more than any real family consumes. A row
+      -- whose entire family is saturated is left NULL rather than blocking
+      -- the loop. There is no provisioning path that assigns a slug today
+      -- (no trigger, no RPC, no application write touches accounts.slug), so
+      -- such a row is simply not servable at a hostname. It is not orphaned:
+      -- profiles.account_id still links and RLS still resolves, and the whole
+      -- app keys off account_id, not slug. Re-running this file after a slot
+      -- frees up assigns it.
       SELECT
         r.id,
         r.k,
