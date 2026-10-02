@@ -18,7 +18,7 @@
 - The proxy MUST NOT query Postgres, MUST NOT read `x-tenant-slug` from the client as authority, and MUST NOT select from `accounts` or `tenants`. It reads the request hostname and writes one header. The pre-existing `createServerClient` / `getUser` session-refresh call is not a tenant lookup and is out of scope.
 - The existing Supabase session-refresh body of `src/middleware.ts` moves **verbatim**. No refactor, no "while I'm here."
 - Migration file is `supabase/migrations/043_tenant_foundation.sql`, must be idempotent, and must not use `NOT NULL` on the new column in the same statement that adds it.
-- Existing suite must remain green: 1073/1073 across 91 files. `tsc --noEmit` and ESLint clean.
+- Existing suite must remain green, with zero lint **errors** (the repo carries a standing set of warnings; "ESLint clean" means 0 errors, not 0 findings). Record the observed file/test counts rather than hardcoding them.
 - No new runtime dependencies. No control-panel UI, billing, SSO, branding, backups, or DNS work in this plan.
 
 ## Review Focus
@@ -543,7 +543,7 @@ cd C:/Users/FX-tec/Desktop/wacrm-work
 cat src/middleware.ts
 ```
 
-Keep this output — the session-refresh body is moved verbatim in Step 4.
+Keep this output — the session-refresh body is moved verbatim in Step 6 (an earlier draft said Step 4, which is the header-module step and was wrong).
 
 - [ ] **Step 2: Write the failing test**
 
@@ -554,6 +554,10 @@ import { describe, expect, it } from "vitest";
 import { TENANT_HEADER, withTenantHeader } from "./header";
 
 describe("withTenantHeader", () => {
+  it("names the header x-tenant-slug", () => {
+    expect(TENANT_HEADER).toBe("x-tenant-slug");
+  });
+
   it("overwrites a client-supplied slug", () => {
     const headers = new Headers({ "x-tenant-slug": "attacker-tenant" });
     withTenantHeader(headers, "acme");
@@ -604,7 +608,7 @@ export function withTenantHeader(
 
 Run: `npx vitest run src/lib/tenant/proxy-header.test.ts`
 
-Expected: PASS, 3 tests
+Expected: PASS, 4 tests
 
 - [ ] **Step 5b: Rename the test file (required).**
 
@@ -635,7 +639,7 @@ const requestHeaders = new Headers(request.headers);
 withTenantHeader(requestHeaders, resolveTenantFromHost(request.headers.get("host")));
 ```
 
-4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code.
+4. Change `NextResponse.next({ request })` to `NextResponse.next({ request: { headers: requestHeaders } })` at **every occurrence EXCEPT the one inside `cookies.setAll`**. The `setAll` site must re-snapshot the headers *after* it writes the cookies, using a different local variable — see the Task 4 brief, which carries the required code **and the two proxy-level tests (its steps 2b and 2c) that this plan does not reproduce**. Step 2b proves the header is overwritten on the forwarded request; step 2c proves it survives the `setAll` rebuild. Without those tests the Definition of Done item "a client-sent value is overwritten" cannot be satisfied.
 
    Applying the same substitution at both sites is WRONG and reintroduces issue #288: `requestHeaders` is snapshotted before `createServerClient` runs, so the `setAll` site would forward a pre-rotation cookie. This was proven by execution during review.
 
@@ -658,7 +662,7 @@ Then in a browser: log in at `http://localhost:3000/login`, land on `/dashboard`
 
 Run: `npm test`
 
-Expected: 1073 + 26 passing (13 slug + 10 resolve + 3 header), zero failures.
+Expected: zero failures, with the 15 tests from `middleware.test.ts` still present under their new name. **Do not hardcode totals here** — an earlier draft asserted "1073 + 26 = 1099", which was stale (measured baseline on this branch: 93 files, 1096 tests) and also miscounted the header tests, which are 4 rather than 3. Record the counts you actually observe.
 
 - [ ] **Step 9: Commit**
 
@@ -744,8 +748,25 @@ Create two accounts with one contact each, then read them back through PostgREST
 
 ```sql
 -- run in the Supabase SQL Editor (browser) — creates the fixtures
-INSERT INTO accounts (name, slug) VALUES ('Iso A', 'iso-a');
-INSERT INTO accounts (name, slug) VALUES ('Iso B', 'iso-b');
+-- Do NOT insert into `accounts` directly. `handle_new_user` is a trigger on
+-- `auth.users` and provisions the account (and the owner profile) automatically.
+-- An earlier draft inserted manually and died on two counts, both verified by
+-- execution:
+--   * `INSERT INTO accounts (name, slug)` omits `owner_user_id`, which is NOT NULL;
+--   * inserting the account again after the trigger made it collide with
+--     `idx_accounts_one_per_owner`, because the trigger had already created one.
+-- So: create the user, let the trigger provision the account, then assign slugs.
+INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, aud, role, instance_id, created_at, updated_at)
+VALUES
+ (gen_random_uuid(), 'iso-a@probe.local', crypt('probe', gen_salt('bf')), now(),
+  '{"provider":"email","providers":["email"]}'::jsonb, '{"full_name":"Iso A"}'::jsonb,
+  'authenticated','authenticated','00000000-0000-0000-0000-000000000000', now(), now()),
+ (gen_random_uuid(), 'iso-b@probe.local', crypt('probe', gen_salt('bf')), now(),
+  '{"provider":"email","providers":["email"]}'::jsonb, '{"full_name":"Iso B"}'::jsonb,
+  'authenticated','authenticated','00000000-0000-0000-0000-000000000000', now(), now());
+UPDATE accounts SET slug = 'iso-a' WHERE name = 'Iso A' AND slug IS NULL;
+UPDATE accounts SET slug = 'iso-b' WHERE name = 'Iso B' AND slug IS NULL;
 ```
 
 Then, with the browser signed in as the owner of `iso-a`:
@@ -796,14 +817,14 @@ git commit -m "test(tenant): verify account isolation through real RLS policies"
 
 ```bash
 docker exec -i $(docker ps --filter "name=supabase_db_wacrm" --format "{{.Names}}" | head -1) \
-  psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "BEGIN; INSERT INTO accounts (name, slug) VALUES ('Doc Check','doc-check'); INSERT INTO tenants (slug, account_id, owner_email) SELECT 'doc-check', id, 'doc@example.test' FROM accounts WHERE slug='doc-check'; ROLLBACK;"
+  psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "BEGIN; INSERT INTO accounts (name, slug, owner_user_id) SELECT 'Doc Check','doc-check', u.id FROM auth.users u LIMIT 1; INSERT INTO tenants (slug, account_id, owner_email) SELECT 'doc-check', id, 'doc@example.test' FROM accounts WHERE slug='doc-check'; ROLLBACK;"
 ```
 
 Expected: exit 0. Then repeat with a second insert of the same slug and confirm it fails:
 
 ```bash
 docker exec -i $(docker ps --filter "name=supabase_db_wacrm" --format "{{.Names}}" | head -1) \
-  psql -U postgres -d postgres -t -A -c "INSERT INTO accounts (name, slug) VALUES ('Dup','doc-check');"
+  psql -U postgres -d postgres -t -A -c "INSERT INTO accounts (name, slug, owner_user_id) SELECT 'Dup','doc-check', u.id FROM auth.users u OFFSET 1 LIMIT 1;
 ```
 
 Expected: an `accounts_slug_key` unique-violation error. If it succeeds, the unique index is missing and Task 3 is incomplete.
@@ -821,10 +842,10 @@ git commit -m "docs: tenant model and manual provisioning"
 
 Check every box before opening a PR.
 
-- [ ] `npm test` → 1073 + 26 passing, zero failures, 94 files
+- [ ] `npm test` → zero failures; the 15 renamed `proxy.test.ts` tests still present. Record the observed totals.
 - [ ] `npx tsc --noEmit` → clean
 - [ ] `npx eslint src --ext .ts,.tsx` → clean
-- [ ] `supabase db reset` applies all 43 migrations with no error
+- [ ] All 43 migrations are present and the tenant objects are correct. **Do NOT verify this with `supabase db reset`** — that act is forbidden above; verify by applying migration 043 to the live database and re-running it, or in a disposable environment.
 - [ ] Running migration 043 twice is a no-op
 - [ ] Login, `/dashboard` and `/contacts` all work in a real browser
 - [ ] `x-tenant-slug` appears on requests and a client-sent value is overwritten
