@@ -218,7 +218,7 @@ runtime is the open question above, and it is not answered by this document.
 | Shared database + `account_id`, RLS isolation | Chosen before inspecting the code, then confirmed by reading the schema. **READ**, not a behavioural verification — see the isolation status note. |
 | Subdomain per tenant (`crm.acme.com`) | Clean separation; requires wildcard DNS + cert, deferred. |
 | `proxy.ts`, not `middleware.ts` | Next 16 documents `proxy.ts` as the current convention (**READ** — Next.js docs: "File-system conventions: proxy.js", present in this tree). Only one proxy file is supported per project. |
-| Single proxy file, logic in modules | Same doc, line 37: "Break out proxy functionalities into separate `.ts` or `.js` files and import them into your main `proxy.ts` file." **READ** — the spec's earlier paraphrase dropped "or `.js`". |
+| Single proxy file, logic in modules | Same doc: "Break out proxy functionalities into separate `.ts` or `.js` files and import them into your main `proxy.ts` file." **READ** — the spec's earlier paraphrase dropped "or `.js`". |
 | localhost-first | First milestone runs entirely on `localhost`; subdomains come after the first real client. |
 | No control-panel UI in this milestone | Explicitly out of scope, and not a success condition. |
 
