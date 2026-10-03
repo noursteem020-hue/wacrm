@@ -1,11 +1,15 @@
 # Tenant model
 
-> **Status of the isolation claim in this document.** The RLS policies on every
-> data table were read and confirmed to predicate access on `auth.uid()`, and the
-> proxy's role was confirmed to be attribution only. **A behavioural check with
-> real users is still `UNVERIFIED`** — see [Isolation verification](#isolation-verification)
-> below. Nothing in this document should be read as proof that isolation holds at
-> runtime; it documents the *mechanism*, and names the proof that is still owed.
+> **Status of the isolation claim in this document.** The RLS policies on the four
+> tables named below were read and confirmed to predicate access on `auth.uid()`,
+> and the proxy's role was confirmed to be attribution only. **This covers 4 of
+> the 27 tables that carry `account_id` — not all of them.** A behavioural check
+> with real users is still `UNVERIFIED` — see
+> [Scope of this evidence](#scope-of-this-evidence--read-before-drawing-conclusions)
+> and [Isolation verification](#isolation-verification). Nothing in this document
+> should be read as proof that isolation holds at runtime; it documents the
+> *mechanism*, names how much of it was checked, and names the proof that is
+> still owed.
 
 ## The model, in one paragraph
 
@@ -100,6 +104,31 @@ One known limitation, documented rather than fixed: the resolver splits on dots
 without a public-suffix list, so `crm.acme.co.uk` resolves to `co` rather than
 `acme`. Add a PSL dependency before serving any two-label TLD.
 
+## Scope of this evidence — read before drawing conclusions
+
+The table below is **not** a statement that account isolation is verified. It
+records exactly how much was checked.
+
+**Checked: the four tables named in the table** — `contacts`, `deals`,
+`conversations`, `automations`.
+
+**Not checked: the other tables that carry `account_id`.** A census found 27 such
+tables. The queries above cover 4 of them, so nothing here should be read as
+having verified the remaining 23. The census also surfaced two tables whose
+policies differ from the `is_account_member` model, and both differences are
+legitimate rather than defects:
+
+| Table | Model | Why it is not a defect |
+|---|---|---|
+| `notifications` | per-**user**: `auth.uid() = user_id` | The table is scoped per user, not per tenant. A different model, not a missing policy. |
+| `automation_pending_executions` | RLS enabled, **zero policies** | With RLS on and no policy, Postgres denies everything. Protected by default, not exposed. |
+
+`tenants` is likewise RLS-enabled with zero policies, which is why owner-only
+visibility there would be a new policy rather than an existing one.
+
+**This was a read of the schema. No request was made as a signed-in user**, so no
+conclusion about runtime isolation is drawn from either table.
+
 ## Isolation verification
 
 `src/lib/tenant/isolation.sql` is the script. It is deliberately **not** a vitest
@@ -109,14 +138,15 @@ database.
 
 **Executed against local Postgres on 2026-10-03.** Results:
 
-| # | Assertion | Result |
-|---|---|---|
-| 1 | tenant accounts exist and are distinct | `hermes-probe`, `nour-abbass` — 2 rows |
-| 2 | SELECT policies on `contacts` / `deals` / `conversations` / `automations` all predicate on `is_account_member(account_id)` | confirmed on all four |
-| 3 | `is_account_member` resolves the caller through `auth.uid()` | `uses_auth_uid = t` |
-| 4 | no data table bypasses `is_account_member` on read | `0` |
+| # | Assertion | Tables | Result |
+|---|---|---|---|
+| 1 | tenant accounts exist and are distinct | `accounts` | `hermes-probe`, `nour-abbass` — 2 rows |
+| 2 | SELECT policies predicate on `is_account_member(account_id)` | 4 named tables | confirmed on all four |
+| 3 | `is_account_member` resolves the caller through `auth.uid()` | function | `uses_auth_uid = t` |
+| 4 | no named table bypasses `is_account_member` on read | 4 named tables | `0` |
 
-Assertions 3 and 4 are stop-the-line gates. Both passed.
+Assertions 3 and 4 are stop-the-line gates. Both passed. **Assertion 4's `0` is
+scoped to those four tables** — it is not a statement about the other 23.
 
 **What this does not establish.** Assertions 1–4 read policy *text*. They
 confirm the mechanism exists and is wired to `auth.uid()`. They do not
