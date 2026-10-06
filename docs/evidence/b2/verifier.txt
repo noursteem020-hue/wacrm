@@ -1,0 +1,261 @@
+====================================================================================================
+VERIFIER - cold comparison of executor.jsonl against mutations.yaml
+====================================================================================================
+
+INPUTS (read-only): executor.jsonl, mutations.yaml
+MANIFEST ENTRIES: 10    EXECUTOR ENTRY RECORDS: 11
+EXECUTOR ORDER   : clean_baseline, rls_disabled, update_using_true, update_with_check_true, select_using_true, insert_with_check_true, select_plus_update_true, update_policy_missing, delete_using_true, function_body_true, clean_baseline
+
+----------------------------------------------------------------------------------------------------
+0. RECORDED PRECONDITION
+----------------------------------------------------------------------------------------------------
+  probe blob (recorded)   : 52e545b839c214c798b0004a37d9fecc2c3de1e4
+  probe bytes             : 47999
+  fingerprint             : bfae0aea057682e5403f70c94f0b5f61
+  md5(prosrc)             : 026fa63f24c5f54584758c4f5d314408
+  dependent policies      : 98
+  capture ok              : True  (758 chars, 20 CR, text-md5 396567acf2958dc93643a5685d2b30ff)
+  abort record present    : False
+  skipped records         : 0
+
+----------------------------------------------------------------------------------------------------
+1. PER-ENTRY COMPARISON   (expected = manifest should_be_red)
+----------------------------------------------------------------------------------------------------
+#    id                     expect   actual   rule    exit    linefound verdict
+  -------------------------------------------------------------------------------------
+0    clean_baseline         False    False    exact   0       n/a (null) MATCH
+1    rls_disabled           True     True     prefix  3       YES       MATCH
+2    update_using_true      True     True     prefix  3       YES       MATCH
+3    update_with_check_true True     False    prefix  0       NO        MISMATCH
+4    select_using_true      True     True     prefix  3       YES       MATCH
+5    insert_with_check_true True     True     exact   3       YES       MATCH
+6    select_plus_update_true True     True     prefix  3       YES       MATCH
+7    update_policy_missing  True     True     prefix  3       YES       MATCH
+8    delete_using_true      True     False    prefix  0       NO        MISMATCH
+9    function_body_true     True     True     prefix  3       YES       MATCH
+
+----------------------------------------------------------------------------------------------------
+2. EXIT CODE vs manifest predicted_exit
+----------------------------------------------------------------------------------------------------
+id                       predicted    actual       rule       note
+clean_baseline           0            0            exact      exit equals predicted
+rls_disabled             3            3            prefix     exit equals predicted
+update_using_true        3            3            prefix     exit equals predicted
+update_with_check_true   0            0            prefix     exit equals predicted
+select_using_true        3            3            prefix     exit equals predicted
+insert_with_check_true   3            3            exact      exit equals predicted
+select_plus_update_true  3            3            prefix     exit equals predicted
+update_policy_missing    3            3            prefix     exit equals predicted
+delete_using_true        null         0            prefix     predicted_exit is null (predicted_red=unknown): no predicted value to compare
+function_body_true       3            3            prefix     exit equals predicted
+
+----------------------------------------------------------------------------------------------------
+3. clean_baseline BOOKEND
+----------------------------------------------------------------------------------------------------
+  first visit  index=0 probe_exit=0 fail_lines=0
+  last  visit  index=10 probe_exit=0 fail_lines=0
+  final clean_baseline exit code : 0
+  manifest requires              : 0 (should_be_red=false, predicted_exit=0)
+  VERDICT                        : MATCH
+
+----------------------------------------------------------------------------------------------------
+4. RESIDUE
+----------------------------------------------------------------------------------------------------
+  final fingerprint (from executor.jsonl) : bfae0aea057682e5403f70c94f0b5f61
+  baseline fingerprint                    : bfae0aea057682e5403f70c94f0b5f61
+  EQUAL?                                  : True
+  final md5(prosrc)                       : 026fa63f24c5f54584758c4f5d314408
+  baseline md5(prosrc)                    : 026fa63f24c5f54584758c4f5d314408
+  EQUAL?                                  : True
+  final dependent policy count            : 98 (baseline 98)
+  recapture identical to original capture : True (758 chars, 20 CR)
+  hard_stop recorded                      : None
+
+----------------------------------------------------------------------------------------------------
+5. PER-ENTRY RESTORE FINGERPRINT vs baseline
+----------------------------------------------------------------------------------------------------
+id                       restore_fingerprint                    match    md5_match
+clean_baseline[0]        bfae0aea057682e5403f70c94f0b5f61       True     n/a
+clean_baseline[10]       bfae0aea057682e5403f70c94f0b5f61       True     n/a
+rls_disabled             bfae0aea057682e5403f70c94f0b5f61       True     True
+update_using_true        bfae0aea057682e5403f70c94f0b5f61       True     True
+update_with_check_true   bfae0aea057682e5403f70c94f0b5f61       True     True
+select_using_true        bfae0aea057682e5403f70c94f0b5f61       True     True
+insert_with_check_true   bfae0aea057682e5403f70c94f0b5f61       True     True
+select_plus_update_true  bfae0aea057682e5403f70c94f0b5f61       True     True
+update_policy_missing    bfae0aea057682e5403f70c94f0b5f61       True     True
+delete_using_true        bfae0aea057682e5403f70c94f0b5f61       True     True
+function_body_true       bfae0aea057682e5403f70c94f0b5f61       True     True
+
+----------------------------------------------------------------------------------------------------
+6. LEDGER LINES NOT ACCOUNTED FOR BY THE MANIFEST
+----------------------------------------------------------------------------------------------------
+  26 line(s) printed by the probe that no manifest ledger_line declares.
+  Each is a FINDING: the manifest states every expected line is declared.
+
+  [rls_disabled] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [rls_disabled] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [rls_disabled] probe_stdout,probe_stderr/
+      [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 2 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+  [update_using_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [select_using_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [select_using_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 2 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [update_policy_missing] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=0): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+  [function_body_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [function_body_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [function_body_true] probe_stdout,probe_stderr/
+      [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 2 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [function_body_true] probe_stdout,probe_stderr/
+      [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+
+----------------------------------------------------------------------------------------------------
+7. TALLY (comparison only)
+----------------------------------------------------------------------------------------------------
+  entries compared        : 10
+  MATCH                   : 8
+  MISMATCH                : 2
+  unexpected ledger lines : 26
+  final clean_baseline    : exit 0
+  residue                 : fingerprint EQUAL TO baseline
+----------------------------------------------------------------------------------------------------
+8. FULL LEDGER PER ENTRY (verbatim, deduped; tag marks a stderr echo)
+----------------------------------------------------------------------------------------------------
+
+  [clean_baseline]  exit=0  should_be_red=False  predicted_red=False  rule=exact
+      (no ledger lines: the probe printed no FAIL entries)
+
+  [rls_disabled]  exit=3  should_be_red=True  predicted_red=True  rule=prefix
+      [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+          -> DECLARED via ledger_line (prefix)
+      [7a] FAIL user A sees 1 probe row(s) outside its own account (any account, not only B)
+          -> DECLARED via ledger_line (prefix)   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL cross-account UPDATE left 2 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+          -> UNACCOUNTED FOR   [+stderr echo]
+
+  [update_using_true]  exit=3  should_be_red=True  predicted_red=True  rule=prefix
+      [9a] FAIL leak: an unscoped UPDATE touched 3 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+          -> DECLARED via ledger_line (prefix)
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+          -> UNACCOUNTED FOR   [+stderr echo]
+
+  [update_with_check_true]  exit=0  should_be_red=True  predicted_red=False  rule=prefix
+      (no ledger lines: the probe printed no FAIL entries)
+
+  [select_using_true]  exit=3  should_be_red=True  predicted_red=True  rule=prefix
+      [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+          -> DECLARED via ledger_line (prefix)
+      [7a] FAIL user A sees 1 probe row(s) outside its own account (any account, not only B)
+          -> DECLARED via ledger_line (prefix)   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+          -> UNACCOUNTED FOR   [+stderr echo]
+
+  [insert_with_check_true]  exit=3  should_be_red=True  predicted_red=True  rule=exact
+      [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+          -> DECLARED via ledger_line (exact)
+
+  [select_plus_update_true]  exit=3  should_be_red=True  predicted_red=True  rule=prefix
+      [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+          -> DECLARED via ledger_line (prefix)
+      [7a] FAIL user A sees 1 probe row(s) outside its own account (any account, not only B)
+          -> DECLARED via ledger_line (prefix)   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL cross-account UPDATE left 2 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+          -> UNACCOUNTED FOR   [+stderr echo]
+
+  [update_policy_missing]  exit=3  should_be_red=True  predicted_red=True  rule=prefix
+      [9a] FAIL positive control before: an in-place edit of user A's OWN row did not succeed (ALLOWED rows=0). Every negative below would pass vacuously, so this section is not yet measuring isolation
+          -> DECLARED via ledger_line (prefix)
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=0): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL drift: the unscoped UPDATE touched 0 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+          -> DECLARED via comment   [+stderr echo]
+
+  [delete_using_true]  exit=0  should_be_red=True  predicted_red=unknown  rule=prefix
+      (no ledger lines: the probe printed no FAIL entries)
+
+  [function_body_true]  exit=3  should_be_red=True  predicted_red=True  rule=prefix
+      [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+          -> DECLARED via ledger_line (prefix)
+      [7a] FAIL user A sees 1 probe row(s) outside its own account (any account, not only B)
+          -> DECLARED via ledger_line (prefix)   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9a] FAIL cross-account UPDATE left 2 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+          -> UNACCOUNTED FOR   [+stderr echo]
+      [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+          -> UNACCOUNTED FOR   [+stderr echo]
+
+====================================================================================================

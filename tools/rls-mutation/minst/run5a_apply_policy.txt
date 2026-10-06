@@ -1,0 +1,10 @@
+BEGIN
+DROP POLICY
+CREATE POLICY
+COMMIT
+             ?column?              
+-----------------------------------
+ applied contacts_delete_qual=true
+(1 row)
+
+EXIT=0

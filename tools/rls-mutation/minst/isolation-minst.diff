@@ -1,0 +1,15 @@
+--- src/lib/tenant/isolation.sql	2026-10-07 01:57:32.517950800 +0300
++++ tools/rls-mutation/isolation-minst.sql	2026-10-07 02:14:37.953187500 +0300
+@@ -601,10 +601,10 @@
+   -- disagree on a healthy M3 run, because anon sees fewer rows than ROW_COUNT
+   -- reports -- that was the bug in the first version of this patch.
+   PERFORM set_config('iso.section9a.w4_instrument',
+-    CASE WHEN (SELECT count(*) FROM contacts WHERE company = current_setting('iso.a_w4_tag')) = v_n
++    CASE WHEN (SELECT count(*) FROM contacts WHERE company = 'M-INST-NO-SUCH-COMPANY') = v_n
+          THEN 'AGREE'
+          ELSE 'DISAGREE rows_counted=' ||
+-              (SELECT count(*) FROM contacts WHERE company = current_setting('iso.a_w4_tag')) ||
++              (SELECT count(*) FROM contacts WHERE company = 'M-INST-NO-SUCH-COMPANY') ||
+               ' row_count=' || v_n END, true);
+   -- Back to the caller: request.jwt.claims is a GUC and survives the role switch.
+   SET LOCAL ROLE anon;

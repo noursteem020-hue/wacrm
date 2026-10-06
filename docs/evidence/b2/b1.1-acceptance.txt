@@ -1,0 +1,23 @@
+==============================================================================
+B1.1 ACCEPTANCE, verified by the orchestrator (not copied from the agent)
+==============================================================================
+baseline fingerprint : bfae0aea057682e5403f70c94f0b5f61  (expected bfae0aea057682e5403f70c94f0b5f61)
+
+--- acceptance ---
+  B1.1-C1 clean          exit=0 fail_lines=0  PASS
+  B1.1-M4 w_check        exit=3 applied_fp=b7ee48a88018 restored=True fail_lines=5  PASS
+  B1.1-M9 delete         exit=3 applied_fp=5043bfad106f restored=True fail_lines=2  PASS
+  B1.1-G3 no false       exit=3 applied_fp=5ed3f993bdf1 restored=True fail_lines=3  PASS
+
+--- regressions (must still be red with their declared line) ---
+  rls_disabled           exit=3 line=yes restored=True  PASS
+  select_using_true      exit=3 line=yes restored=True  PASS
+  insert_with_check_true exit=3 line=yes restored=True  PASS
+  select_plus_update_true exit=3 line=yes restored=True  PASS
+  function_body_true     exit=3 line=yes restored=True  PASS
+
+--- final integrity ---
+  fingerprint = bfae0aea057682e5403f70c94f0b5f61  == baseline
+  md5(prosrc) = 026fa63f24c5f54584758c4f5d314408  == baseline
+==============================================================================
+ACCEPTANCE PASSED

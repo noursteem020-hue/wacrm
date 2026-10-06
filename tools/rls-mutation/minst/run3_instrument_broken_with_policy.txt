@@ -1,0 +1,320 @@
+
+=== INFORMATIONAL CENSUS 1-6 (reporting only, NOT a pass/fail gate) ===
+
+--- 1. tenant accounts exist and are distinct ---
+     slug     |     name     
+--------------+--------------
+ hermes-probe | Hermes Probe
+ nour-abbass  | nour abbass
+(2 rows)
+
+
+--- 2. the policy predicate on every data table ---
+   tablename   |      policyname      |  cmd   |                           qual                            
+---------------+----------------------+--------+-----------------------------------------------------------
+ automations   | automations_delete   | DELETE | is_account_member(account_id, 'agent'::account_role_enum)
+ automations   | automations_insert   | INSERT | 
+ automations   | automations_select   | SELECT | is_account_member(account_id)
+ automations   | automations_update   | UPDATE | is_account_member(account_id, 'agent'::account_role_enum)
+ contacts      | contacts_delete      | DELETE | true
+ contacts      | contacts_insert      | INSERT | 
+ contacts      | contacts_select      | SELECT | is_account_member(account_id)
+ contacts      | contacts_update      | UPDATE | is_account_member(account_id, 'agent'::account_role_enum)
+ conversations | conversations_delete | DELETE | is_account_member(account_id, 'agent'::account_role_enum)
+ conversations | conversations_insert | INSERT | 
+ conversations | conversations_select | SELECT | is_account_member(account_id)
+ conversations | conversations_update | UPDATE | is_account_member(account_id, 'agent'::account_role_enum)
+ deals         | deals_delete         | DELETE | is_account_member(account_id, 'agent'::account_role_enum)
+ deals         | deals_insert         | INSERT | 
+ deals         | deals_select         | SELECT | is_account_member(account_id)
+ deals         | deals_update         | UPDATE | is_account_member(account_id, 'agent'::account_role_enum)
+(16 rows)
+
+
+--- 3. account resolution is driven by auth.uid(), not a header ---
+      proname      | uses_auth_uid 
+-------------------+---------------
+ is_account_member | t
+(1 row)
+
+
+--- 4. no data table bypasses is_account_member ---
+ tables_with_other_policy 
+--------------------------
+                        0
+(1 row)
+
+
+--- 5. which account-scoped tables exist, and does each one gate SELECT? ---
+          table_name           | select_policies |                gate                 
+-------------------------------+-----------------+-------------------------------------
+ automation_pending_executions |               0 | no SELECT policy (fail-closed)
+ tenants                       |               0 | no SELECT policy (fail-closed)
+ notifications                 |               1 | SELECT policy not is_account_member
+ account_invitations           |               1 | is_account_member
+ ai_configs                    |               1 | is_account_member
+ ai_knowledge_chunks           |               1 | is_account_member
+ ai_knowledge_documents        |               1 | is_account_member
+ ai_usage_log                  |               1 | is_account_member
+ api_keys                      |               1 | is_account_member
+ automation_logs               |               1 | is_account_member
+ automations                   |               1 | is_account_member
+ broadcasts                    |               1 | is_account_member
+ contact_notes                 |               1 | is_account_member
+ contacts                      |               1 | is_account_member
+ conversations                 |               1 | is_account_member
+ custom_fields                 |               1 | is_account_member
+ deals                         |               1 | is_account_member
+ flow_runs                     |               1 | is_account_member
+ flows                         |               1 | is_account_member
+ member_presence               |               1 | is_account_member
+ message_templates             |               1 | is_account_member
+ pipelines                     |               1 | is_account_member
+ profiles                      |               1 | is_account_member
+ quick_replies                 |               1 | is_account_member
+ tags                          |               1 | is_account_member
+ webhook_endpoints             |               1 | is_account_member
+ whatsapp_config               |               1 | is_account_member
+(27 rows)
+
+
+--- 6. profiles.user_id is UNIQUE -> user-scoped policy == account-scoped ---
+       conname        |       def        
+----------------------+------------------
+ profiles_pkey        | PRIMARY KEY (id)
+ profiles_user_id_key | UNIQUE (user_id)
+(2 rows)
+
+
+=== 7-9b. GATE: live cross-account traffic through the real policies ===
+
+--- run nonce: 401600   probe marker: iso-401600@isolation.probe.invalid
+--- probe A: account 0661e985-3c71-48e5-aafd-bc5277eca3a2   user 1f1cb02d-8af2-4198-b070-95b89cd995b6
+--- probe B: account e4e71025-bef5-4247-a403-0d4f76e78d38   user 8f4a20fa-dadb-4acb-95e7-ebf0f4fe3e85
+
+--- 7a. as user A: sees its own seeded row, and NOTHING outside its account ---
+BEGIN
+INSERT 0 2
+SET
+                                 set_config                                 
+----------------------------------------------------------------------------
+ {"sub" : "1f1cb02d-8af2-4198-b070-95b89cd995b6", "role" : "authenticated"}
+(1 row)
+
+   own_rows= 1   other_account_leak= 0   leak_general= 0   probe_rows_visible= 1
+ROLLBACK
+
+--- 7b. as user B: sees its own seeded row, and NOTHING outside its account ---
+BEGIN
+INSERT 0 2
+SET
+                                 set_config                                 
+----------------------------------------------------------------------------
+ {"sub" : "8f4a20fa-dadb-4acb-95e7-ebf0f4fe3e85", "role" : "authenticated"}
+(1 row)
+
+   own_rows= 1   other_account_leak= 0   leak_general= 0   probe_rows_visible= 1
+ROLLBACK
+
+--- 7c. seed completeness: the admin view really holds one row per account ---
+BEGIN
+INSERT 0 2
+   accounts_seeded= 2   rows_seeded= 2
+ROLLBACK
+
+--- 8. NEGATIVE: INSERT into another account must be REJECTED by WITH CHECK ---
+BEGIN
+              set_config              
+--------------------------------------
+ e4e71025-bef5-4247-a403-0d4f76e78d38
+(1 row)
+
+              set_config              
+--------------------------------------
+ 1f1cb02d-8af2-4198-b070-95b89cd995b6
+(1 row)
+
+             set_config             
+------------------------------------
+ iso-401600@isolation.probe.invalid
+(1 row)
+
+DO
+   outcome= REJECTED_RLS   leaked_rows_at_probe_time= 0   cross_account_row_count= 0
+ROLLBACK
+
+--- 9a. NEGATIVE: cross-account UPDATE must be REJECTED ---
+BEGIN
+              set_config              
+--------------------------------------
+ 0661e985-3c71-48e5-aafd-bc5277eca3a2
+(1 row)
+
+              set_config              
+--------------------------------------
+ e4e71025-bef5-4247-a403-0d4f76e78d38
+(1 row)
+
+              set_config              
+--------------------------------------
+ 1f1cb02d-8af2-4198-b070-95b89cd995b6
+(1 row)
+
+              set_config              
+--------------------------------------
+ 8f4a20fa-dadb-4acb-95e7-ebf0f4fe3e85
+(1 row)
+
+             set_config             
+------------------------------------
+ iso-401600@isolation.probe.invalid
+(1 row)
+
+                set_config                
+------------------------------------------
+ iso-401600-after@isolation.probe.invalid
+(1 row)
+
+    set_config    
+------------------
+ +1555401600a1066
+(1 row)
+
+    set_config    
+------------------
+ +1555401600a2066
+(1 row)
+
+    set_config    
+------------------
+ +1555401600b1e4e
+(1 row)
+
+              set_config              
+--------------------------------------
+ cc3d2c53-2887-48da-9b10-670bf4aadb29
+(1 row)
+
+    set_config    
+------------------
+ +1555401600c1cc3
+(1 row)
+
+       set_config       
+------------------------
+ iso-9a-unscoped-401600
+(1 row)
+
+              set_config              
+--------------------------------------
+ iso-c-401600@isolation.probe.invalid
+(1 row)
+
+INSERT 0 1
+DO
+              set_config              
+--------------------------------------
+ 17648b2f-eda8-4431-b1bb-73319ee4eb78
+(1 row)
+
+INSERT 0 4
+ set_config 
+------------
+ 1
+(1 row)
+
+DO
+   [9a] edit A own row (pos before)  -> ALLOWED rows=1
+   [9a] A own row -> account B      -> REJECTED_RLS rows=0
+   [9a] -> account B, no acct filter-> REJECTED_RLS rows=0
+   [9a] unscoped UPDATE             -> ALLOWED rows=2
+   [9a] unscoped: touched= 2  leaked= 0  instrument= DISAGREE rows_counted=0 row_count=2
+   [9a] edit A own row (pos after)  -> ALLOWED rows=1
+   [9a] UNSCOPED move -> account B  -> REJECTED_RLS rows=0
+   [9a] unscoped move: a= 2  b= 1  elsewhere= 0  instrument= AGREE
+   [9a] own_rows_after= 2   other_account_rows= 1   elsewhere_rows= 0
+   [9a] probe_rows_after= 3   control_row_after= 1   control_row_edited= 1
+   [9a] rows reported: w1= 1  w2= 0  w3= 0  w4= 2  w5= 1  w6= 0
+ROLLBACK
+
+--- 9b. NEGATIVE: cross-account DELETE must be REJECTED ---
+BEGIN
+              set_config              
+--------------------------------------
+ 0661e985-3c71-48e5-aafd-bc5277eca3a2
+(1 row)
+
+              set_config              
+--------------------------------------
+ e4e71025-bef5-4247-a403-0d4f76e78d38
+(1 row)
+
+              set_config              
+--------------------------------------
+ 1f1cb02d-8af2-4198-b070-95b89cd995b6
+(1 row)
+
+             set_config             
+------------------------------------
+ iso-401600@isolation.probe.invalid
+(1 row)
+
+                set_config                
+------------------------------------------
+ iso-401600-after@isolation.probe.invalid
+(1 row)
+
+    set_config    
+------------------
+ +1555401600a1066
+(1 row)
+
+    set_config    
+------------------
+ +1555401600a2066
+(1 row)
+
+    set_config    
+------------------
+ +1555401600b1e4e
+(1 row)
+
+INSERT 0 3
+DO
+   [9b] delete A own row (pos before) -> ALLOWED rows=1
+   [9b] delete B rows by account_id  -> ALLOWED rows=0
+   [9b] delete, no account filter    -> ALLOWED rows=0
+   [9b] delete A own row (pos after)  -> ALLOWED rows=1
+   [9b] UNSCOPED DELETE              -> ALLOWED rows=2
+   [9b] census before a= 0  b= 1  other= 1
+   [9b] census after  a= 0  b= 0  other= 0  instrument= AGREE
+   [9b] same census read as anon     -> 0
+   [9b] b_rows_after= 0   own_rows_after= 0
+   [9b] probe_rows_after= 0   table_rows_after= 0
+ROLLBACK
+
+--- 9. fail-closed census: tables with no SELECT policy (reporting only) ---
+BEGIN
+SET
+                                 set_config                                 
+----------------------------------------------------------------------------
+ {"sub" : "1f1cb02d-8af2-4198-b070-95b89cd995b6", "role" : "authenticated"}
+(1 row)
+
+ tenants_visible | pending_visible | contacts_visible 
+-----------------+-----------------+------------------
+               0 |               0 |                0
+(1 row)
+
+ROLLBACK
+
+--- gate ---
+TENANT ISOLATION FAILED. Failures:
+[9a] FAIL instrument: ROW_COUNT and the counted rows disagree (DISAGREE rows_counted=0 row_count=2). The leak verdict below would be meaningless
+[9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+
+psql:<stdin>:1133: ERROR:  tenant isolation FAILED: [9a] FAIL instrument: ROW_COUNT and the counted rows disagree (DISAGREE rows_counted=0 row_count=2). The leak verdict below would be meaningless
+[9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+
+CONTEXT:  PL/pgSQL function inline_code_block line 1 at RAISE
+EXIT=3

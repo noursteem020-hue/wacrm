@@ -670,7 +670,7 @@ BEGIN
   -- policy mutation in the campaign; DISAGREE is reachable only by breaking the
   -- counting itself (see the M-inst probe in tools/rls-mutation/).
   PERFORM set_config('iso.section9a.w6_instrument',
-    CASE WHEN (v_n > 0) = (current_setting('iso.section9a.w6_b')::bigint > current_setting('iso.a_expected_b')::bigint)
+    CASE WHEN (v_n > 0) = (current_setting('iso.section9a.w6_b')::bigint > current_setting('iso.section9a.w6_elsewhere')::bigint)
          THEN 'AGREE'
          ELSE 'DISAGREE rows=' || v_n ||
               ' a_owned_after=' || current_setting('iso.section9a.w6_a') ||
@@ -1095,26 +1095,6 @@ SELECT :'ledger' || CASE
   WHEN :'d9_b_rows_after'::bigint <> 1
     THEN format(E'[9b] FAIL cross-account DELETE: account B''s probe row did not survive (rows found as postgres: %s, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it\n',
                 :'d9_b_rows_after')
-  ELSE '' END AS ledger \gset
-
--- INSTRUMENT, and this one GATES. The census above is the only witness that B's row
--- survived, and it is compared as postgres. If the statement's own ROW_COUNT and
--- that census disagree, then either the DELETE touched rows the census cannot see,
--- or the census itself is broken -- and in both cases the verdict above is unsound.
---
--- MEASURED before this arm existed: the instrument was computed (iso.section9b
--- d6_instrument), carried through \gset and echoed, but never compared. Breaking the
--- census printed "instrument= DISAGREE" and the run still exited 0, which means the
--- [9b] DELETE verdicts were being taken on a measurement nothing watched. Same class
--- of defect as G3: a verdict resting on a number nobody checked.
---
--- Proved load-bearing by the mutant in tools/rls-mutation/minst/: with this arm
--- present, breaking the census turns the run red on THIS line, with every policy at
--- baseline.
-SELECT :'ledger' || CASE
-  WHEN :'d9b_d6_instrument' <> 'AGREE'
-    THEN format(E'[9b] FAIL instrument: the unscoped DELETE''s ROW_COUNT and the ownership census disagree (%s). The DELETE verdict above would be meaningless\n',
-                :'d9b_d6_instrument')
   ELSE '' END AS ledger \gset
 ROLLBACK;
 

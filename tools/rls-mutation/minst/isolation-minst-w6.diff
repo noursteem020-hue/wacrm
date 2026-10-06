@@ -1,0 +1,11 @@
+--- src/lib/tenant/isolation.sql	2026-10-07 01:57:32.517950800 +0300
++++ tools/rls-mutation/minst/isolation-minst-w6.sql	2026-10-07 02:16:28.431219400 +0300
+@@ -670,7 +670,7 @@
+   -- policy mutation in the campaign; DISAGREE is reachable only by breaking the
+   -- counting itself (see the M-inst probe in tools/rls-mutation/).
+   PERFORM set_config('iso.section9a.w6_instrument',
+-    CASE WHEN (v_n > 0) = (current_setting('iso.section9a.w6_b')::bigint > current_setting('iso.a_expected_b')::bigint)
++    CASE WHEN (v_n > 0) = (current_setting('iso.section9a.w6_b')::bigint > current_setting('iso.section9a.w6_elsewhere')::bigint)
+          THEN 'AGREE'
+          ELSE 'DISAGREE rows=' || v_n ||
+               ' a_owned_after=' || current_setting('iso.section9a.w6_a') ||

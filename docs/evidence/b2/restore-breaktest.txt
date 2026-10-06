@@ -1,0 +1,147 @@
+==============================================================================
+B1.1-RESTORE-TEST  executor.py post-restore hard_stop discrimination test
+run at 2026-10-07 02:12:24
+db: container=supabase_db_wacrm database=postgres user=postgres
+==============================================================================
+
+[0] GATE UNDER TEST -- executor.py lines 349-364, read from disk:
+     349|         fp_after, _, _ = fingerprint()
+     350|         rec["restore_fingerprint"] = fp_after
+     351|         rec["restore_matches_baseline"] = (fp_after == baseline_fp)
+     352|         m5a, _, _ = md5_prosrc()
+     353|         rec["md5_prosrc_after"] = m5a
+     354|         rec["md5_matches_baseline"] = (m5a == BASELINE_MD5)
+     355| 
+     356|         records.append(rec)
+     357|         print("[%2d] %-22s exit=%-3s fails=%-2d restore_rc=%s fp_match=%s md5_match=%s"
+     358|               % (idx, eid, prc, len(rec["fail_lines"]),
+     359|                  rec.get("restore_rc"), rec["restore_matches_baseline"],
+     360|                  rec["md5_matches_baseline"]))
+     361| 
+     362|         if not rec["restore_matches_baseline"]:
+     363|             hard_stop = ("fingerprint after restore of %s is %r, baseline is %r"
+     364|                          % (eid, fp_after, baseline_fp))
+    [all five expected statements present in the cited range]
+
+[1] PRECONDITION -- the database must be the baseline this test restores
+  before any variant     md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+    md5(prosrc)=026fa63f24c5f54584758c4f5d314408  fp=bfae0aea057682e5403f70c94f0b5f61  dep=98  -- baseline confirmed
+    capture: 758 chars, 20 CR, text-md5=396567acf2958dc93643a5685d2b30ff
+    mutation under test: function_body_true (manifest apply_sql, verbatim)
+
+------------------------------------------------------------------------------
+VARIANT 1 -- print-not-execute restore (THE SHIPPED DEFECT)
+------------------------------------------------------------------------------
+  variant start          md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  APPLY   rc=0 err=-
+  after apply (mutated)  md5(prosrc)=ad10d2d261acf04c0fdea047663ee33d fp=eabbaaff560639f834e7ed76dcf46acf dep=98
+  RESTORE mechanism: SELECT convert_from(decode('<b64 of captured definition>','base64'),'UTF8');
+  RESTORE payload   : 1012 bytes on psql stdin
+  RESTORE rc=0
+  RESTORE stderr    : -
+  RESTORE stdout    : (empty)
+  after restore          md5(prosrc)=ad10d2d261acf04c0fdea047663ee33d fp=eabbaaff560639f834e7ed76dcf46acf dep=98
+  GATE   fingerprint_after=eabbaaff560639f834e7ed76dcf46acf  md5_prosrc_after=ad10d2d261acf04c0fdea047663ee33d
+  GATE   restore_matches_baseline=False  md5_matches_baseline=False
+  GATE   VERDICT: FIRE (mismatch)
+  GATE   hard_stop text the Executor would print:
+          HARD STOP: fingerprint after restore is 'eabbaaff560639f834e7ed76dcf46acf', baseline is 'bfae0aea057682e5403f70c94f0b5f61'
+  CHECK   gate fired=True, database actually drifted=True, fired-for-the-right-reason=True
+  EXPECT  variant 1 -> gate FIRES
+  RESULT  OK
+  after repair           md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  REPAIR rc=0 err=- -> back at baseline
+
+------------------------------------------------------------------------------
+VARIANT 2 -- corrupted body restore (right mechanism, wrong content)
+------------------------------------------------------------------------------
+  variant start          md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  APPLY   rc=0 err=-
+  after apply (mutated)  md5(prosrc)=ad10d2d261acf04c0fdea047663ee33d fp=eabbaaff560639f834e7ed76dcf46acf dep=98
+  RESTORE mechanism: captured pg_get_functiondef with the $function$ body replaced by SELECT true, sent as raw bytes to psql stdin (executor.psql_bytes)
+  RESTORE payload   : 274 bytes on psql stdin
+  RESTORE rc=0
+  RESTORE stderr    : -
+  RESTORE stdout    : (empty)
+  after restore          md5(prosrc)=241c389d478e34e0a246940095338f45 fp=047d98985282c173968ff46db2e7c6d5 dep=98
+  GATE   fingerprint_after=047d98985282c173968ff46db2e7c6d5  md5_prosrc_after=241c389d478e34e0a246940095338f45
+  GATE   restore_matches_baseline=False  md5_matches_baseline=False
+  GATE   VERDICT: FIRE (mismatch)
+  GATE   hard_stop text the Executor would print:
+          HARD STOP: fingerprint after restore is '047d98985282c173968ff46db2e7c6d5', baseline is 'bfae0aea057682e5403f70c94f0b5f61'
+  CHECK   gate fired=True, database actually drifted=True, fired-for-the-right-reason=True
+  EXPECT  variant 2 -> gate FIRES
+  RESULT  OK
+  after repair           md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  REPAIR rc=0 err=- -> back at baseline
+
+------------------------------------------------------------------------------
+VARIANT 2b -- CR-stripped restore (visually correct, 20 CR -> 0)
+------------------------------------------------------------------------------
+  variant start          md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  APPLY   rc=0 err=-
+  after apply (mutated)  md5(prosrc)=ad10d2d261acf04c0fdea047663ee33d fp=eabbaaff560639f834e7ed76dcf46acf dep=98
+  RESTORE mechanism: captured pg_get_functiondef with every CR removed (CRs are real here: baseline prosrc has 20 of them), sent as raw bytes
+  RESTORE payload   : 738 bytes on psql stdin
+  RESTORE rc=0
+  RESTORE stderr    : -
+  RESTORE stdout    : (empty)
+  after restore          md5(prosrc)=23a5e9ebdc246e1ba1be31cde2713826 fp=891d74d61409ee4c972cdc7d8cd3d593 dep=98
+  GATE   fingerprint_after=891d74d61409ee4c972cdc7d8cd3d593  md5_prosrc_after=23a5e9ebdc246e1ba1be31cde2713826
+  GATE   restore_matches_baseline=False  md5_matches_baseline=False
+  GATE   VERDICT: FIRE (mismatch)
+  GATE   hard_stop text the Executor would print:
+          HARD STOP: fingerprint after restore is '891d74d61409ee4c972cdc7d8cd3d593', baseline is 'bfae0aea057682e5403f70c94f0b5f61'
+  CHECK   gate fired=True, database actually drifted=True, fired-for-the-right-reason=True
+  EXPECT  variant 2b -> gate FIRES
+  RESULT  OK
+  after repair           md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  REPAIR rc=0 err=- -> back at baseline
+
+------------------------------------------------------------------------------
+VARIANT 3 -- correct restore (CONTROL -- must pass the gate)
+------------------------------------------------------------------------------
+  variant start          md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  APPLY   rc=0 err=-
+  after apply (mutated)  md5(prosrc)=ad10d2d261acf04c0fdea047663ee33d fp=eabbaaff560639f834e7ed76dcf46acf dep=98
+  RESTORE mechanism: executor.build_restore_sql('replay_pg_get_functiondef', capture) -> executor.psql_bytes (verbatim captured bytes, one appended terminator)
+  RESTORE payload   : 758 bytes on psql stdin
+  RESTORE rc=0
+  RESTORE stderr    : -
+  RESTORE stdout    : (empty)
+  after restore          md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  GATE   fingerprint_after=bfae0aea057682e5403f70c94f0b5f61  md5_prosrc_after=026fa63f24c5f54584758c4f5d314408
+  GATE   restore_matches_baseline=True  md5_matches_baseline=True
+  GATE   VERDICT: PASS (baseline restored)
+  CHECK   gate fired=False, database actually drifted=False, fired-for-the-right-reason=True
+  EXPECT  variant 3 -> gate PASSES
+  RESULT  OK
+  after repair           md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  REPAIR rc=0 err=- -> back at baseline
+
+==============================================================================
+SUMMARY
+==============================================================================
+  variant  restore_rc  md5_after_apply -> md5_after_restore   fp_after_restore  gate
+  1        0           ad10d2d2 -> ad10d2d2                          eabbaaff          FIRE
+  2        0           ad10d2d2 -> 241c389d                          047d9898          FIRE
+  2b       0           ad10d2d2 -> 23a5e9eb                          891d74d6          FIRE
+  3        0           ad10d2d2 -> 026fa63f                          bfae0aea          PASS
+
+  baseline md5(prosrc)=026fa63f24c5f54584758c4f5d314408
+  baseline fingerprint=bfae0aea057682e5403f70c94f0b5f61
+
+FINAL BASELINE PROOF
+  FINAL                  md5(prosrc)=026fa63f24c5f54584758c4f5d314408 fp=bfae0aea057682e5403f70c94f0b5f61 dep=98
+  prosrc stats (read): 510 chars, 20 CR
+  pg_proc attrs (md5 prosecdef proconfig provolatile proparallel argnames<>'' owner lang argnames prokind len CR):
+    026fa63f24c5f54584758c4f5d314408 true search_path=public s u true postgres 14 target_account_id,min_role f 510 20
+  md5(prosrc) == baseline  : True
+  fingerprint == baseline  : True
+  dependent policies == 98 : True
+
+VERDICT
+  every variant behaved as the gate's design requires : True
+  the gate discriminates (some FIRE, some PASS)        : True
+  database left at the measured baseline               : True
+  exit code                                          : 0

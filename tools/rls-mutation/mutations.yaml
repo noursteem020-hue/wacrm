@@ -1,0 +1,196 @@
+- id: clean_baseline
+  name: Clean baseline, nothing applied
+  noop: true
+  touched_objects: []
+  apply_sql: []
+  restore_sql: []
+  should_be_red: false
+  predicted_red: false
+  predicted_exit: 0
+  matching_rule: exact
+  ledger_line: null
+  gap_if_green: null
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+
+- id: rls_disabled
+  name: RLS disabled on contacts
+  touched_objects: [table_flags]
+  apply_sql: |
+    ALTER TABLE public.contacts DISABLE ROW LEVEL SECURITY;
+  restore_sql: |
+    ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: true
+  predicted_exit: 3
+  matching_rule: prefix
+  ledger_line: "[7a] FAIL user A sees "
+  gap_if_green: A green run means the probe cannot observe RLS being off, so every RLS-disabled claim in the file is unsupported.
+  fingerprint_fields: [public.contacts.relrowsecurity, public.contacts.relforcerowsecurity, schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+
+- id: update_using_true
+  name: contacts_update USING (true), no WITH CHECK clause
+  touched_objects: [policies]
+  apply_sql: |
+    DROP POLICY contacts_update ON public.contacts;
+    CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (true);
+  restore_sql: |
+    DROP POLICY IF EXISTS contacts_update ON public.contacts;
+    CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (is_account_member(account_id, 'agent'::account_role_enum));
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: true
+  predicted_exit: 3
+  matching_rule: prefix
+  ledger_line: "[9a] FAIL leak: an unscoped UPDATE touched "
+  gap_if_green: A green run means the unscoped-UPDATE shape is not actually detected, and the previously silent hole is still silent.
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+
+- id: update_with_check_true
+  name: contacts_update WITH CHECK (true), USING left at baseline
+  touched_objects: [policies]
+  apply_sql: |
+    DROP POLICY contacts_update ON public.contacts;
+    CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (is_account_member(account_id, 'agent'::account_role_enum)) WITH CHECK (true);
+  restore_sql: |
+    DROP POLICY IF EXISTS contacts_update ON public.contacts;
+    CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (is_account_member(account_id, 'agent'::account_role_enum));
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: false
+  predicted_exit: 0
+  matching_rule: prefix
+  ledger_line: "[9a] FAIL cross-account UPDATE was ALLOWED ("
+  gap_if_green: The missing probe is the UNSCOPED account_id move. With a WHERE clause the UPDATE needs read privilege, so PostgreSQL applies the SELECT policy to the NEW row too and is_account_member(B) rejects it - the SELECT policy acts as a second WITH CHECK. An UPDATE with no WHERE needs no read privilege, so the new row is never checked against SELECT; under this mutation all of A's rows should move to B. The probe only attempts the targeted (WHERE) shape, so the unscoped shape is unverified.
+  missing_probe: unscoped account_id move (UPDATE contacts SET account_id = <B> with no WHERE)
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+
+- id: select_using_true
+  name: contacts_select USING (true)
+  touched_objects: [policies]
+  apply_sql: |
+    DROP POLICY contacts_select ON public.contacts;
+    CREATE POLICY contacts_select ON public.contacts AS PERMISSIVE FOR SELECT TO public USING (true);
+  restore_sql: |
+    DROP POLICY IF EXISTS contacts_select ON public.contacts;
+    CREATE POLICY contacts_select ON public.contacts AS PERMISSIVE FOR SELECT TO public USING (is_account_member(account_id));
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: true
+  predicted_exit: 3
+  matching_rule: prefix
+  ledger_line: "[7a] FAIL user A sees "
+  gap_if_green: A green run means cross-account SELECT is not measured at all, so the leak verdict of sections 7a and 7b is vacuous.
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+
+- id: insert_with_check_true
+  name: contacts_insert WITH CHECK (true)
+  touched_objects: [policies]
+  apply_sql: |
+    DROP POLICY contacts_insert ON public.contacts;
+    CREATE POLICY contacts_insert ON public.contacts AS PERMISSIVE FOR INSERT TO public WITH CHECK (true);
+  restore_sql: |
+    DROP POLICY IF EXISTS contacts_insert ON public.contacts;
+    CREATE POLICY contacts_insert ON public.contacts AS PERMISSIVE FOR INSERT TO public WITH CHECK (is_account_member(account_id, 'agent'::account_role_enum));
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: true
+  predicted_exit: 3
+  matching_rule: exact
+  ledger_line: "[8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it"
+  gap_if_green: A green run means section 8 does not exercise the INSERT WITH CHECK and cross-account writes would go unreported.
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+
+- id: select_plus_update_true
+  name: contacts_select USING (true) together with contacts_update USING (true)
+  touched_objects: [policies]
+  apply_sql: |
+    DROP POLICY contacts_select ON public.contacts;
+    DROP POLICY contacts_update ON public.contacts;
+    CREATE POLICY contacts_select ON public.contacts AS PERMISSIVE FOR SELECT TO public USING (true);
+    CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (true);
+  restore_sql: |
+    DROP POLICY IF EXISTS contacts_select ON public.contacts;
+    DROP POLICY IF EXISTS contacts_update ON public.contacts;
+    CREATE POLICY contacts_select ON public.contacts AS PERMISSIVE FOR SELECT TO public USING (is_account_member(account_id));
+    CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (is_account_member(account_id, 'agent'::account_role_enum));
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: true
+  predicted_exit: 3
+  matching_rule: prefix
+  ledger_line: "[7a] FAIL user A sees "
+  gap_if_green: A green run means the combined read-plus-write hole is undetected even though each policy alone is provably insufficient.
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+
+- id: update_policy_missing
+  name: contacts_update dropped entirely
+  touched_objects: [policies]
+  apply_sql: |
+    DROP POLICY contacts_update ON public.contacts;
+  restore_sql: |
+    DROP POLICY IF EXISTS contacts_update ON public.contacts;
+    CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (is_account_member(account_id, 'agent'::account_role_enum));
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: true
+  predicted_exit: 3
+  matching_rule: prefix
+  ledger_line: "[9a] FAIL positive control before: an in-place edit of user A's OWN row did not succeed ("
+  gap_if_green: A green run means a missing UPDATE policy is silently tolerated, so the test only detects wider policies and never narrower ones.
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+  comment: "Measured touched=0, so the drift line '[9a] FAIL drift: the unscoped UPDATE touched ' is expected in the same ledger alongside the positive-control line named above."
+
+- id: delete_using_true
+  name: contacts_delete USING (true)
+  touched_objects: [policies]
+  apply_sql: |
+    DROP POLICY contacts_delete ON public.contacts;
+    CREATE POLICY contacts_delete ON public.contacts AS PERMISSIVE FOR DELETE TO public USING (true);
+  restore_sql: |
+    DROP POLICY IF EXISTS contacts_delete ON public.contacts;
+    CREATE POLICY contacts_delete ON public.contacts AS PERMISSIVE FOR DELETE TO public USING (is_account_member(account_id, 'agent'::account_role_enum));
+  restore_is_idempotent: true
+  should_be_red: true
+  predicted_red: unknown
+  predicted_exit: null
+  matching_rule: prefix
+  ledger_line: "[9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: "
+  gap_if_green: A green run means the test cannot see this shape because contacts_select still scopes the DELETE scan, which is a blind spot in the test and not evidence the DELETE policy is safe.
+  fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
+  comment: "NOT MEASURED. predicted_red is deliberately unknown rather than guessed: B2 exists to measure it, and a side-channel measurement would not bind to what the Executor sees. A green run is a coverage finding (the test is blind to an unscoped DELETE), never evidence that the DELETE policy is safe."
+
+- id: function_body_true
+  name: is_account_member body replaced with a constant true
+  touched_objects: [function]
+  # MEASURED 2026-10-07 in supabase_db_wacrm. DROP FUNCTION is IMPOSSIBLE here:
+  #   ERROR: cannot drop ... because other objects depend on it  (98 policies).
+  # CREATE OR REPLACE works and the restore is byte-exact. This definition was
+  # emitted by the measurement run, not hand-written, so SECURITY DEFINER,
+  # SET search_path, STABLE and the DEFAULT on min_role are all preserved.
+  apply_sql: |
+    CREATE OR REPLACE FUNCTION public.is_account_member(target_account_id uuid, min_role account_role_enum DEFAULT 'viewer'::account_role_enum)
+     RETURNS boolean
+     LANGUAGE sql
+     STABLE SECURITY DEFINER
+     SET search_path TO 'public'
+    AS $function$
+      SELECT true;
+    $function$;
+  # Idempotent by construction: CREATE OR REPLACE converges on the same function.
+  # This is what makes it safe on path B (restore run against the clean baseline).
+  restore_is_idempotent: true
+  restore_procedure: |
+    1. BEFORE apply, capture from pg_proc for oid = 'public.is_account_member(uuid,account_role_enum)'::regprocedure: pg_get_functiondef(oid), md5(prosrc), proowner::regrole, prosecdef, proconfig, prolang, provolatile, proparallelsafe, proargnames.
+    2. Apply apply_sql verbatim, then run the probe.
+    3. In a finally block, execute the captured pg_get_functiondef text verbatim, once, unconditionally. Never retype the function from memory or from this file.
+    4. After restoring, re-read all eight captured fields and require md5(prosrc) = 026fa63f24c5f54584758c4f5d314408, proowner = postgres, prosecdef = true, proconfig = {search_path=public} before any further run; abort the whole campaign on mismatch.
+    5. Re-read the 98 pg_policies rows in schema public that reference is_account_member and require permissive, roles, cmd, qual, with_check to be byte-identical to the pre-apply capture.
+  should_be_red: true
+  predicted_red: true
+  predicted_exit: 3
+  matching_rule: prefix
+  ledger_line: "[7a] FAIL user A sees "
+  gap_if_green: A green run means 98 dependent policies are not actually enforced by this function, so every census line naming it is decoration.
+  fingerprint_fields: [pg_proc.md5(prosrc), pg_proc.proowner, pg_proc.prosecdef, pg_proc.proconfig, pg_proc.prolang, pg_proc.provolatile, pg_proc.proparallelsafe, pg_policies.permissive, pg_policies.roles]
+  comment: "MEASURED, not guessed. Apply changed md5(prosrc) 026fa63f... -> e6185493765e66e82d2d0c2bd6086b1c while owner=postgres, secdef=true, config=search_path=public and all 98 dependent policies stayed intact; the verbatim restore returned md5 to 026fa63f24c5f54584758c4f5d314408 with those same four values unchanged and the policy count still 98. Do not substitute DROP FUNCTION or hand-write the definition: DROP is rejected by the dependency on 98 policies, and a hand-written body silently resets SECURITY DEFINER, search_path and STABLE to their defaults."
