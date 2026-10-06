@@ -181,7 +181,7 @@
   # This is what makes it safe on path B (restore run against the clean baseline).
   restore_is_idempotent: true
   restore_procedure: |
-    1. BEFORE apply, capture from pg_proc for oid = 'public.is_account_member(uuid,account_role_enum)'::regprocedure: pg_get_functiondef(oid), md5(prosrc), proowner::regrole, prosecdef, proconfig, prolang, provolatile, proparallelsafe, proargnames.
+    1. BEFORE apply, capture from pg_proc for oid = 'public.is_account_member(uuid,account_role_enum)'::regprocedure: pg_get_functiondef(oid), md5(prosrc), proowner::regrole, prosecdef, proconfig, prolang, provolatile, proparallel, proargnames.
     2. Apply apply_sql verbatim, then run the probe.
     3. In a finally block, execute the captured pg_get_functiondef text verbatim, once, unconditionally. Never retype the function from memory or from this file.
     4. After restoring, re-read all eight captured fields and require md5(prosrc) = 026fa63f24c5f54584758c4f5d314408, proowner = postgres, prosecdef = true, proconfig = {search_path=public} before any further run; abort the whole campaign on mismatch.
@@ -192,5 +192,5 @@
   matching_rule: prefix
   ledger_line: "[7a] FAIL user A sees "
   gap_if_green: A green run means 98 dependent policies are not actually enforced by this function, so every census line naming it is decoration.
-  fingerprint_fields: [pg_proc.md5(prosrc), pg_proc.proowner, pg_proc.prosecdef, pg_proc.proconfig, pg_proc.prolang, pg_proc.provolatile, pg_proc.proparallelsafe, pg_policies.permissive, pg_policies.roles]
+  fingerprint_fields: [pg_proc.md5(prosrc), pg_proc.proowner, pg_proc.prosecdef, pg_proc.proconfig, pg_proc.prolang, pg_proc.provolatile, pg_proc.proparallel, pg_policies.permissive, pg_policies.roles]
   comment: "MEASURED, not guessed. Apply changed md5(prosrc) 026fa63f... -> e6185493765e66e82d2d0c2bd6086b1c while owner=postgres, secdef=true, config=search_path=public and all 98 dependent policies stayed intact; the verbatim restore returned md5 to 026fa63f24c5f54584758c4f5d314408 with those same four values unchanged and the policy count still 98. Do not substitute DROP FUNCTION or hand-write the definition: DROP is rejected by the dependency on 98 policies, and a hand-written body silently resets SECURITY DEFINER, search_path and STABLE to their defaults."
