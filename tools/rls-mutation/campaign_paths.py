@@ -36,11 +36,21 @@ BASELINE_MD5 = "026fa63f24c5f54584758c4f5d314408"
 EXPECTED_BASELINE_FP = "bfae0aea057682e5403f70c94f0b5f61"
 EXPECTED_DEPENDENT_POLICIES = 98
 
-# The blob B2 was run against, i.e. this file as of commit 1bfa3929. It is NOT the
-# current blob: commit f251f9a (B1.1) changed the probe. A run at this pin is
-# testing the pre-B1.1 probe and will abort, which is the point -- the pin is an
-# assertion, not a default.
-EXPECTED_PROBE_BLOB = "52e545b839c214c798b0004a37d9fecc2c3de1e4"
+# The blob the B2 campaign ran against. That is the tree at 1bfa3929, which is this
+# file as of commit f251f9a's parent. The Executor used the value below to assert
+# "the probe has not changed since the manifest was written"; at that pin a run
+# tested the pre-B1.1 probe.
+#
+# After B1.1 (commit f251f9a) the probe changed, so the pin was re-read from git
+# rather than from the working file:
+#
+#     git rev-parse f251f9a:src/lib/tenant/isolation.sql
+#
+# which returned f50a7d80a9e756e1a0c7aa3739bb935c9c80f463. MEASURED that this
+# equals `git hash-object src/lib/tenant/isolation.sql` in a clean tree, so the
+# value is git's own and not a worktree artefact of CRLF normalisation. Had the
+# two disagreed, this pin would have recorded a hash that no clone could reproduce.
+EXPECTED_PROBE_BLOB = "f50a7d80a9e756e1a0c7aa3739bb935c9c80f463"
 
 
 def ensure_evidence_dir():
