@@ -1,38 +1,58 @@
 """Check every FAIL line the run emitted against ledger-lines.md's classifications.
 
-Written as a script rather than inline because four attempts at an inline heredoc
-matcher produced three different answers: substring matching missed lines the doc
-lists with N/M placeholders, and two truncation attempts cut both sides
-mid-phrase so nothing ever matched. A checker whose own logic is unverified is
-the exact defect class this campaign is about, so it gets its own file and its
-own output.
+Kept in the tree because its own history is part of the record. The version
+committed first reported 9 of the 16 lines as unclassified; all 9 were in fact
+classified. Two bugs, in order:
 
-The rule the document states about itself: every FAIL line must be classified as
-required or allowed_collateral, or it is a defect. This script reports which, by
-comparing each emitted line against the document's table rows with numbers and
-placeholders treated as equal.
+  1. It stripped the [7a]/[9a] tag on one side of the comparison only. The
+     document writes the tag inside its table cell, so the two sides could never
+     agree and it reported 16 of 16 as unclassified.
+  2. With the tag kept, it matched on full-string prefixes. Several document rows
+     are abbreviated with an ellipsis ("[9a] FAIL positive control before: …"),
+     which leaves too few words for a prefix test, so those read as gaps.
+
+It now compares on word triples with stopwords removed, which survives both
+abbreviation and differing counts. A row the document states very tersely can
+still be reported as a gap, and the output says so on each line. Read the list
+before acting on it: a checker that reports a false negative is
+indistinguishable from one that found real defects.
+
+The document's own rule, which this enforces -- every FAIL line the probe can
+emit must be classified as required or allowed_collateral, or it is a defect.
 """
 import json
 import pathlib
 import re
 import sys
 
-DOC = pathlib.Path("C:/Users/FX-tec/Desktop/wacrm-work/tools/rls-mutation/ledger-lines.md")
-JSONL = pathlib.Path("C:/Users/FX-tec/Desktop/wacrm-work/docs/evidence/b2r2/executor.jsonl")
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+DOC = ROOT / "tools" / "rls-mutation" / "ledger-lines.md"
+JSONL = ROOT / "docs" / "evidence" / "b2r2" / "executor.jsonl"
+
+STOP = {"fail", "row", "rows", "the", "a", "an", "of", "its", "own", "to",
+        "and", "was", "is", "not", "must", "this", "by", "s", "n", "m",
+        "every", "below", "above"}
 
 
 def normalise(text):
-    """Reduce a ledger line to comparable words.
-
-    The tag is KEPT, because the document writes it: a row reads
-    "`[9a] FAIL leak: ...`", so stripping the tag on one side and not the other
-    guarantees a mismatch. That bug was in the first version of this script and it
-    reported all 16 lines as unclassified.
-    """
+    """Keep the tag; drop parentheses, digits and punctuation; lowercase."""
     t = text.replace("`", "").replace("…", "")
-    t = re.sub(r"\(.*?\)", " ", t)          # drop parentheticals and their counts
-    t = re.sub(r"[^A-Za-z ]", " ", t)       # digits, underscores, dashes -> space
+    t = re.sub(r"\(.*?\)", " ", t)             # parentheticals and their counts
+    t = re.sub(r"[^A-Za-z\[\]0-9 ]", " ", t)   # dashes, underscores -> space
     return re.sub(r"\s+", " ", t).strip().lower()
+
+
+def triples(text):
+    """Word triples with digits unified, so a differing count cannot matter."""
+    words = [x for x in re.sub(r"\d+", "#", text).split() if x not in STOP]
+    return {" ".join(words[i:i + 3]) for i in range(len(words) - 2)}
+
+
+def classified(line_key, rows):
+    lt = triples(line_key)
+    if not lt:
+        return False
+    return any(len(lt & triples(r)) >= 2 for r in rows)
 
 
 def main():
@@ -40,43 +60,37 @@ def main():
     for line in DOC.read_text(encoding="utf-8").splitlines():
         if line.startswith("|") and "FAIL" in line:
             k = normalise(line.split("|")[1])
-            if k:
+            if len(k) > 12:                 # skips header-ish cells like "mutation"
                 rows.append(k)
     print(f"classified rows in the document : {len(rows)}")
 
-    recs = [json.loads(l) for l in JSONL.read_text(encoding="utf-8").splitlines() if l.strip()]
-    entries = [d for d in recs if d.get("record") == "entry"]
+    if not JSONL.exists():
+        print(f"no run at {JSONL}")
+        return 2
 
+    recs = [json.loads(l) for l in JSONL.read_text(encoding="utf-8").splitlines() if l.strip()]
     stems = {}
-    for d in entries:
+    for d in [x for x in recs if x.get("record") == "entry"]:
         seen = set()
         for x in d.get("fail_lines") or []:
             s = x["line"].strip()
             if "FAIL" not in s or s == "TENANT ISOLATION FAILED. Failures:":
                 continue
-            if s.startswith("psql:"):          # the gate's stderr echo of the ledger
+            if s.startswith("psql:"):        # the gate's stderr echo of the ledger
                 continue
             seen.add(s)
         for s in seen:
             stems.setdefault(normalise(s), set()).add(d["id"])
 
     print(f"distinct FAIL lines in the run  : {len(stems)}")
-    unclassified = []
-    for stem, ids in sorted(stems.items()):
-        if not any(stem.startswith(r) or r.startswith(stem) for r in rows):
-            unclassified.append((sorted(ids), stem))
+    unclassified = [(sorted(ids), k) for k, ids in sorted(stems.items())
+                    if not classified(k, rows)]
 
     print(f"UNCLASSIFIED                    : {len(unclassified)}")
-    for ids, stem in unclassified:
-        print(f"   !! {','.join(ids)}  {stem[:110]}")
-
-    # Also report the inverse: doc rows never observed, which is allowed_collateral
-    # declared for a mutation that may not have run in this particular campaign.
-    emitted = set(stems)
-    unused = [r for r in rows if not any(e.startswith(r) or r.startswith(e) for e in emitted)]
-    print(f"\ndocument rows not seen this run : {len(unused)}")
-    for u in unused:
-        print(f"   -- {u[:110]}")
+    for ids, k in unclassified:
+        print(f"   !! {','.join(ids)}  {k[:100]}")
+        print("      confirm by hand: the document may state this row so tersely")
+        print("      that no three-word sequence survives the comparison.")
     return 1 if unclassified else 0
 
 
