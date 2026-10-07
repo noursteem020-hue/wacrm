@@ -1,3 +1,6 @@
+==========================================================================
+BASELINE: the committed document and the committed run
+==========================================================================
 classified rows in the document : 27
 distinct FAIL lines in the run  : 20
   OK   [function_body_true,rls_disabled,select_plus_update_true,select_using_true] required           <- `[7a] FAIL user A sees N probe row(s) outside its own accoun
@@ -41,3 +44,31 @@ distinct FAIL lines in the run  : 20
   OK   [delete_using_true,function_body_true,rls_disabled] required           <- `[9b] FAIL cross-account DELETE: account B's probe row did n
        [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expect
 UNCLASSIFIED                    : 0
+
+==========================================================================
+T1  delete one classified row; expect exactly the lines it covered
+==========================================================================
+removed row:
+   | `[9a] FAIL leak: the unscoped UPDATE moved N probe row(s) into account B` | required | `update_with_check_true` (B1.1) | the B1.1 wording of the w6 
+
+MEASURED: that row classifies 2 distinct line(s) here:
+    [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=2, 2 row(s
+    [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=5, 5 row(s
+
+UNCLASSIFIED = 2   (expected 2)
+   flagged [[update_with_check_true]] [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=2, 2
+   flagged [[function_body_true,rls_disabled,select_plus_update_true,update_using_true]] [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=5, 5
+T1 PASS
+
+==========================================================================
+T2  add an undeclared line; expect it to be rejected
+==========================================================================
+injected: [9a] FAIL cross-account UPDATE bypassed the census: the ownership census was not consulted, counted 
+
+UNCLASSIFIED = 1   (expected 1, the injected line)
+   flagged [[clean_baseline]] [9a] FAIL cross-account UPDATE bypassed the census: the ownership census was not consulted
+T2 PASS
+
+==========================================================================
+BOTH PASS: the auditor can fail, and fails for the right reason.
+Its 0 unclassified on the baseline is now evidence, not a shrug.
