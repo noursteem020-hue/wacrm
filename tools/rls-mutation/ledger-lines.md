@@ -247,9 +247,54 @@ consumed via t.raw() or t.rich()"). That failure did not reproduce in five runs,
 committed evidence supports it. Claim withdrawn.
 
 What I do not know: why that single run failed. I did not capture its output, and the
-file it would have come from was overwritten. A first-run-only failure of an
-i18n guard after a fresh `npm ci` is consistent with a transform-cache race in
-vitest, but that is inference, not measurement, so it is not recorded as the cause.
+file it would have come from was overwritten.
+
+## Two hypotheses for the ICU failure, both tested, neither confirmed
+
+HYPOTHESIS 1 (the one I first wrote down): a vitest transform-cache race on a cold
+run, which is consistent with a guard that reads source text. TESTED and NOT
+CONFIRMED: in a worktree created fresh at `1bfa392`, `npm ci` then two runs, both
+gave `1110 passed | 7 skipped (1117)`, rc=0, and neither output mentions `icu` or
+`hostile`.
+
+```
+git grep -il 'hostile' 1bfa392 -- '*.test.*'   -> src/i18n/icu-safety.test.ts
+                                                     src/i18n/messages.test.ts
+```
+
+The test file is real and was present at `1bfa392`; it is not an invented name.
+
+HYPOTHESIS 2: the failing run happened in the mis-pathed worktree created earlier in
+this session at `C:/c/Users/FX-tec/Desktop/w868` (a literal `/c` prefix, so no
+`node_modules` and the wrong tree). Consistent with what I saw, but UNTESTED — that
+directory is gone and the run's output was not kept, so it cannot be tested now.
+
+Neither hypothesis is recorded as the cause. A first-run failure of that guard after
+a fresh install remains unexplained by anything measured here, and I am not going to
+name a mechanism I cannot reproduce.
+
+## tsc: `--ignoreConfig` was not the blind check I suspected
+
+MEASURED, at `20fa752`, deliberately broken file each time, then removed:
+
+| check | `-p tsconfig.json` | `--ignoreConfig` |
+|---|---|---|
+| `const x: number = "s"` | rc=2, caught | rc=1, caught |
+| strict-only error (`unknown.toFixed()`) | rc=2, caught | rc=1, caught |
+| wrong member on a `@/` aliased import | rc=2, caught | rc=1, caught |
+| a file under `.claude/` | rc=0, skipped | rc=0, skipped |
+| files checked, `--listFilesOnly` | 2453 | 2453, identical set |
+
+So `--ignoreConfig` was not vacuous: it saw the same 2453 files, caught the same
+errors, and skipped the same file. Its real defect is narrower — exit 1 where the
+configured project exits 2, and it silently drops `paths` and `exclude` while
+appearing to do the same job. A reviewer cannot tell which invocation ran from a bare
+`rc=0`. The claims now use `-p tsconfig.json`, which is correct by construction and
+whose break test is `rc=2`.
+
+Also recorded, because it nearly became a wrong claim: the `.claude/` row shows that
+`-p` does NOT check every file on disk — it honours `include`/`exclude`. Neither
+invocation is a "check the entire repository" button.
 
 Also measured while fixing this: the committed run output contained my absolute
 home path (`C:/Users/FX-tec/Desktop/w868`) and a wall-clock timestamp. Both are now
