@@ -165,6 +165,15 @@ cause is still unknown. The output would have answered it in a minute.
   machine and cannot be re-checked elsewhere.
 - **Copy a failure to evidence before you re-run it.** Re-running is exactly how the
   original output disappears.
+- **Every claim of `0` needs a positive control.** A filter that returns `0` is only
+  evidence if the same command returns `> 0` on a case known to contain the thing.
+  MEASURED, twice in this repository:
+  `grep -ci 'icu|hostile'` returns `0` on a file that really does contain two ICU
+  failure lines — in a BRE the `|` is a literal, so the command cannot answer "yes"
+  at all. `grep -ciE 'icu|hostile'` on the same file returns `2`. And
+  `tsc --noEmit` with no project can return `0` while checking nothing. If a command
+  cannot say "yes", its "no" carries no information. Write the positive control in
+  the same commit as the claim.
 - **A claim about a comparison is measured or it is withdrawn.** "It silently drops
   config" is a claim about a tool, and it was wrong until four commands disproved it.
 
