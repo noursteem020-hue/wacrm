@@ -1,0 +1,13 @@
+
+> wacrm@0.8.0 test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/FX-tec/Desktop/w868
+
+
+ Test Files  95 passed (95)
+      Tests  1110 passed | 7 skipped (1117)
+   Start at  22:36:27
+   Duration  25.41s (transform 36.45s, setup 0ms, import 87.87s, tests 8.54s, environment 37ms)
+
