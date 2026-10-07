@@ -3,11 +3,11 @@
 > vitest run
 
 
- RUN  v4.1.11 C:/Users/FX-tec/Desktop/w868
+ RUN  v4.1.11 <worktree>
 
 
  Test Files  95 passed (95)
       Tests  1110 passed | 7 skipped (1117)
-   Start at  22:44:25
-   Duration  14.62s (transform 19.52s, setup 0ms, import 51.48s, tests 6.21s, environment 40ms)
+   Start at  <elided>
+   Duration  <elided>
 

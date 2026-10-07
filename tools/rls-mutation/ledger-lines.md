@@ -230,3 +230,28 @@ Everything above is backed by raw output in the repository, not in a temp direct
 An earlier version of this document pointed at `C:/Users/.../AppData/Local/Temp/…`,
 which is machine-local and survives nothing. All evidence a reader needs is now under
 version control.
+
+## A claim I made and then withdrew: "the suite is flaky"
+
+MEASURED at `1bfa392` in a detached worktree, `npm ci` then `npm test`, five
+consecutive runs:
+
+```
+Tests 1110 passed | 7 skipped (1117)   rc=0   runs 1,2,3,4,5
+```
+
+An earlier draft of PR #4 and PR #3 said the suite was flaky, citing one run that
+failed on `src/i18n/icu-safety.test.ts` ("every {{...}} / raw-HTML message is
+consumed via t.raw() or t.rich()"). That failure did not reproduce in five runs, and
+`git grep -ci 'icu|hostile'` over both committed suite files returns 0, so no
+committed evidence supports it. Claim withdrawn.
+
+What I do not know: why that single run failed. I did not capture its output, and the
+file it would have come from was overwritten. A first-run-only failure of an
+i18n guard after a fresh `npm ci` is consistent with a transform-cache race in
+vitest, but that is inference, not measurement, so it is not recorded as the cause.
+
+Also measured while fixing this: the committed run output contained my absolute
+home path (`C:/Users/FX-tec/Desktop/w868`) and a wall-clock timestamp. Both are now
+elided in the committed files, since an evidence artefact that carries the author's
+absolute path is not portable and not re-checkable by a reviewer.
