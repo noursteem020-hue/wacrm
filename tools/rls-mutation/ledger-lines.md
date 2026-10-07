@@ -12,6 +12,14 @@ line that asserted a leak when zero rows had moved (now fixed, see G3 below).
 
 - `required` — this line is the declared signal for at least one mutation in
   `mutations.yaml`. Its absence under a mutation that should trigger it is a gap.
+- `required_untested` — **a declared signal whose triggering mutation is missing
+  from the manifest.** The line never fired in any run, because no entry exercises
+  it. It is neither `required` (nothing proved it) nor `allowed_collateral` (it is
+  not a secondary detection of the same breakage — usually it is the only witness
+  for a *narrower*-than-baseline policy, a direction nothing else reports). The row
+  must name the gap and the mutation that would close it, e.g.
+  `G4 select_using_false`; a row with this class and no named gap is `MALFORMED` and
+  fails the audit, because that is indistinguishable from a silent downgrade.
 - `allowed_collateral` — a correct secondary detection of the *same* breakage.
   Legitimate under a broad mutation, but it must never be the *only* evidence, and
   it earns nothing on its own.
@@ -50,7 +58,7 @@ here is inferred from the probe's comments.
 |---|---|---|---|
 | `[7a] FAIL user A sees N probe row(s) owned by account B -- cross-account SELECT leak` | required | `select_using_true`, `select_plus_update_true`, `rls_disabled`, `function_body_true` | declared signal for both select mutations |
 | `[7a] FAIL user A sees N probe row(s) outside its own account (any account, not only B)` | required | `select_using_true`, `select_plus_update_true`, `rls_disabled`, `function_body_true` | the same leak stated generally, so a third tenant's row would be caught too; not a duplicate of the line above |
-| `[7a] FAIL user A reads 0 of its own rows` | allowed_collateral | — | positive control: a policy so narrow the caller sees nothing. **Never fired in B2 or B2.2** — the reverse audit found it, so it is not a load-bearing signal and does not earn `required` |
+| `[7a] FAIL user A reads 0 of its own rows` | required_untested | G4 `select_using_false` | positive control: a policy so narrow the caller sees nothing. **Never fired in B2 or B2.2**, so it is NOT a declared signal of any measured mutation — it is a positive control whose triggering mutation is missing from the manifest. Guard read at HEAD: `WHEN :'a_own_rows'::bigint = 0` (probe line 243). Recorded as gap **G4**; the mutation that would exercise it belongs to B3, not here. It must not be `allowed_collateral`: nothing else in the table reports "the policy is too narrow" |
 | `[7b] FAIL user B sees N probe row(s) owned by account A -- cross-account SELECT leak` | allowed_collateral | `select_using_true`, `rls_disabled`, `function_body_true` | symmetric second witness; never the sole evidence |
 | `[7b] FAIL user B sees N probe row(s) outside its own account (any account, not only A)` | allowed_collateral | `select_using_true`, `select_plus_update_true`, `rls_disabled`, `function_body_true` | as above, stated generally |
 
@@ -87,7 +95,7 @@ here is inferred from the probe's comments.
 
 | line | class | observed under | note |
 |---|---|---|---|
-| `[9b] FAIL positive control before: …` | allowed_collateral | — | A's own row must be deletable. **Never fired in B2 or B2.2 — reclassified by the reverse audit.** Its guard is `d9b_d1 <> 'ALLOWED rows=1'` (probe line 1086), and no manifest entry makes A's own DELETE fail: `rls_disabled` opens RLS rather than breaking A's delete, which is why the line stayed silent under it. It is a vacuity guard with no triggering mutation in this manifest, so it is not a declared signal for any entry |
+| `[9b] FAIL positive control before: …` | required_untested | G5 `delete_policy_missing` | A's own row must be deletable. **Never fired in B2 or B2.2**, so it is not a declared signal of any measured mutation — it is a positive control whose triggering mutation is missing. Guard read at HEAD: `WHEN :'d9b_d1' <> 'ALLOWED rows=1'` (probe line 1086); `rls_disabled` opens RLS rather than breaking A's own delete, which is why it stayed silent under it. Recorded as gap **G5**; the mutation belongs to B3. It must not be `allowed_collateral`: it detects the policy being too narrow, which no other line in the `[9b]` section reports |
 | `[9b] FAIL positive control after: …` | allowed_collateral | `rls_disabled` | after-write path |
 | `[9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1)` | required | `delete_using_true` (B1.1), `rls_disabled`, `function_body_true` | **the declared `delete_using_true` signal, which B2 never reached** — that was gap G2 |
 | `[9b] FAIL instrument: the unscoped DELETE's ROW_COUNT and the ownership census disagree` | required | M-inst (`isolation-minst-d6.sql`) | the `[9b]` census instrument, added by B1.1. Absent from B2.2 by design: it fires only when the census itself is broken, which no mutation in the manifest does. **Proven load-bearing** by `tools/rls-mutation/minst/run8_d6_instrument_broken.txt` — see the census section below |
@@ -127,6 +135,31 @@ All three instruments are now load-bearing: `w4`, `w6`, `d6`.
 | **G1** | `update_with_check_true` went green: the unscoped `account_id` move was never asserted | new `w6` shape + `leak`/`drift`/`instrument` assertions | MEASURED: exit 3, 5 FAIL lines, line present |
 | **G2** | `delete_using_true` went green: all four `DELETE`s in `[9b]` had a `WHERE`, so `contacts_select` scoped the scan | added the unscoped `DELETE FROM contacts` shape, counted per account as postgres | MEASURED: exit 3, 2 FAIL lines |
 | **G3** | false red: `WHEN :'u9a_w2' LIKE 'ALLOWED%'` fired on `ALLOWED rows=0` | predicate is now `:'r9a_w2_rows' > 0`, the count extracted by `regexp_match` | MEASURED: the `ALLOWED rows=0` line is absent under `update_policy_missing` |
+
+## Known gaps — deferred to B3, not closed here
+
+Found by the reverse audit: a positive control that has never fired because the
+manifest contains no mutation that exercises it. Classified `required_untested`,
+which is a real class and not a euphemism — see the rule below the table.
+
+| gap | line | missing mutation | why it is not collateral |
+|---|---|---|---|
+| **G4** | `[7a] FAIL user A reads 0 of its own rows` | `select_using_false` | Detects a SELECT policy **narrower** than the baseline — A sees nothing at all. Nothing else in the table reports that direction; every other `[7a]` row reports a policy that is too wide. Downgrading it would delete the only narrow-side witness. Guard read at HEAD: `WHEN :'a_own_rows'::bigint = 0` (probe line 243). |
+| **G5** | `[9b] FAIL positive control before: …` | `delete_policy_missing` | Detects a DELETE policy **narrower** than the baseline — A cannot delete its own row. No other line in the `[9b]` section reports that; the other two report leaks and after-path breakage. Guard read at HEAD: `WHEN :'d9b_d1' <> 'ALLOWED rows=1'` (probe line 1086). |
+
+Both were found after B1.1, in B2.2, by asking which declared `required` rows had
+never fired. The mistake made first — and recorded here because it is the same one
+this whole campaign exists to prevent — was to relabel them `allowed_collateral`,
+which would have made the audit pass while hiding two untested failure directions
+behind a reclassification. A line that never fired is not thereby secondary; for a
+positive control it means the MANIFEST is missing a mutation.
+
+`required_untested` is accepted by `ledger_audit.py` only when the row **names the
+gap**, in the form `G4 select_using_false`. A row with that class and no named gap is
+reported `MALFORMED` and fails the audit — because without the name it is
+indistinguishable from the silent downgrade it was introduced to prevent. T4 in
+`tools/rls-mutation/audit_breaktest.py` blanks the name and requires the failure,
+and preflight6.py runs that test before it touches the database.
 
 ## Defects fixed in the tooling, not the probe
 
