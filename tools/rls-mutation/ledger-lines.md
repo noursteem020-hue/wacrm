@@ -50,7 +50,7 @@ here is inferred from the probe's comments.
 |---|---|---|---|
 | `[7a] FAIL user A sees N probe row(s) owned by account B -- cross-account SELECT leak` | required | `select_using_true`, `select_plus_update_true`, `rls_disabled`, `function_body_true` | declared signal for both select mutations |
 | `[7a] FAIL user A sees N probe row(s) outside its own account (any account, not only B)` | required | `select_using_true`, `select_plus_update_true`, `rls_disabled`, `function_body_true` | the same leak stated generally, so a third tenant's row would be caught too; not a duplicate of the line above |
-| `[7a] FAIL user A reads 0 of its own rows` | required | — | positive control: a policy so narrow the caller sees nothing |
+| `[7a] FAIL user A reads 0 of its own rows` | allowed_collateral | — | positive control: a policy so narrow the caller sees nothing. **Never fired in B2 or B2.2** — the reverse audit found it, so it is not a load-bearing signal and does not earn `required` |
 | `[7b] FAIL user B sees N probe row(s) owned by account A -- cross-account SELECT leak` | allowed_collateral | `select_using_true`, `rls_disabled`, `function_body_true` | symmetric second witness; never the sole evidence |
 | `[7b] FAIL user B sees N probe row(s) outside its own account (any account, not only A)` | allowed_collateral | `select_using_true`, `select_plus_update_true`, `rls_disabled`, `function_body_true` | as above, stated generally |
 
@@ -79,7 +79,7 @@ here is inferred from the probe's comments.
 | `[9a] FAIL positive control after: … the write path is broken, not merely strict` | allowed_collateral | `update_with_check_true` (B1.1) | **MEASURED verbatim:** `ALLOWED rows=0`. It goes red for a CASCADE reason: the earlier unscoped move already relocated the row, so the after-control can no longer find it. It is a consequence of the leak, not an independent signal — classifying it `required` would make any row-moving mutation look like it fired two declared signals |
 | `[9a] FAIL cross-account UPDATE left N row(s) owned by account B and M row(s) owned by an account that is neither caller nor B` | allowed_collateral | `update_with_check_true` (B1.1) | **MEASURED verbatim:** `left 3 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B`. Post-state witness for the same leak the `leak` line already proves; counted as postgres |
 | `[9a] FAIL instrument: the unscoped UPDATE's ROW_COUNT and the ownership census disagree` | required | M-inst (w6 variant) | the G1 shape's own instrument |
-| `[9a] FAIL leak: an unscoped UPDATE touched N row(s) not owned by the caller` | required | `update_using_true`, `rls_disabled`, `function_body_true`, `select_plus_update_true` | the pre-B1.1 **w4** leak arm, counted across every account the caller does not own. Still emitted by the broader mutations; the narrower `update_with_check_true` case is caught by the `moved N probe row(s) into account B` row above |
+| `[9a] FAIL leak: an unscoped UPDATE touched N row(s) not owned by the caller` | required | `update_using_true`, `rls_disabled`, `function_body_true`, `select_plus_update_true` | the pre-B1.1 **w4** leak arm, counted across every account the caller does not own. Still emitted by the broader mutations; the narrower `update_with_check_true` case is caught by the `moved N probe row(s) into account B` row above. **Reverse-audited, declaration CONFIRMED:** MEASURED in B2.2 that exactly those four mutations emit this line — `update_using_true` (3 rows) and `function_body_true` / `rls_disabled` / `select_plus_update_true` (4 rows) — and that `update_with_check_true` does NOT, consistent with it being the narrower w6 case |
 | `[9a] FAIL drift: the unscoped UPDATE touched N row(s), the baseline is M` | required | `update_policy_missing` | the pre-B1.1 **w4** drift arm. **MEASURED under `update_policy_missing`:** `the unscoped UPDATE touched 0 row(s), the baseline is 2` — the policy is NARROWER than the baseline and nothing moved at all, which is a real failure and must not be read as safety |
 | `[9a] FAIL cross-account UPDATE left N row(s) owned by account B` | allowed_collateral | `update_using_true`, `rls_disabled`, `function_body_true` | post-state witness for the same leak, counted as postgres before the rollback |
 
@@ -87,9 +87,10 @@ here is inferred from the probe's comments.
 
 | line | class | observed under | note |
 |---|---|---|---|
-| `[9b] FAIL positive control before: …` | required | `rls_disabled` | A's own row must be deletable |
+| `[9b] FAIL positive control before: …` | allowed_collateral | — | A's own row must be deletable. **Never fired in B2 or B2.2 — reclassified by the reverse audit.** Its guard is `d9b_d1 <> 'ALLOWED rows=1'` (probe line 1086), and no manifest entry makes A's own DELETE fail: `rls_disabled` opens RLS rather than breaking A's delete, which is why the line stayed silent under it. It is a vacuity guard with no triggering mutation in this manifest, so it is not a declared signal for any entry |
 | `[9b] FAIL positive control after: …` | allowed_collateral | `rls_disabled` | after-write path |
 | `[9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1)` | required | `delete_using_true` (B1.1), `rls_disabled`, `function_body_true` | **the declared `delete_using_true` signal, which B2 never reached** — that was gap G2 |
+| `[9b] FAIL instrument: the unscoped DELETE's ROW_COUNT and the ownership census disagree` | required | M-inst (`isolation-minst-d6.sql`) | the `[9b]` census instrument, added by B1.1. Absent from B2.2 by design: it fires only when the census itself is broken, which no mutation in the manifest does. **Proven load-bearing** by `tools/rls-mutation/minst/run8_d6_instrument_broken.txt` — see the census section below |
 
 ### `[9b]` census instrument — **fixed in B1.1**
 
