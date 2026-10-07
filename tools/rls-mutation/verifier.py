@@ -39,6 +39,45 @@ OUT = os.path.join(EVID, "verifier.txt")
 BASELINE_FP = "bfae0aea057682e5403f70c94f0b5f61"
 BASELINE_MD5 = "026fa63f24c5f54584758c4f5d314408"
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def ledger_audit_verdict():
+    """Run ledger_audit.py on the SAME executor.jsonl and return its headline counts.
+
+    Why the verifier runs it: section 6 counts the lines outside each entry's single
+    declared ledger_line, and that number reads like a defect list. It is not one --
+    it is a scope artifact. The authoritative classification is the ledger table, and
+    printing it here means the two numbers are visible together instead of the
+    alarming one travelling alone into someone else's terminal.
+
+    Returns None if the audit cannot be run. It deliberately does NOT fall back to a
+    default: a verifier that printed a reassuring count it did not measure would be
+    the same defect as the one this whole campaign exists to catch.
+    """
+    import subprocess
+    import sys
+
+    script = os.path.join(HERE, "ledger_audit.py")
+    if not os.path.exists(script):
+        return None
+    env = dict(os.environ)
+    # Resolve the ledger and the run relative to the tools, exactly as the auditor
+    # does, so it reads THIS run's executor.jsonl and not one found by chance.
+    env["WACRM_EVIDENCE"] = os.path.dirname(os.path.abspath(JSONL))
+    try:
+        r = subprocess.run([sys.executable, script], capture_output=True, text=True, env=env)
+    except OSError:
+        return None
+    keep = ("UNCLASSIFIED", "SILENT REQUIRED", "DEFERRED required_untested",
+            "MALFORMED required_untested", "distinct FAIL lines", "classified rows")
+    out = [l.strip() for l in (r.stdout + r.stderr).splitlines()
+           if any(l.strip().startswith(k) for k in keep)]
+    if not out:
+        return None
+    return out + ["audit exit code: %d%s" % (r.returncode,
+                                             "" if r.returncode == 0 else "   <- LEDGER AUDIT FAILED")]
+
 
 # --------------------------------------------------------------- manifest ---
 def parse_manifest():
@@ -357,19 +396,37 @@ def main():
                  mm if mm is not None else "n/a"))
     W("")
 
-    # -- unexpected lines ---------------------------------------------------
+    # -- lines outside the per-mutation comparison ---------------------------
     W("-" * 100)
-    W("6. LEDGER LINES NOT ACCOUNTED FOR BY THE MANIFEST")
+    W("6. LEDGER LINES OUTSIDE THE PER-MUTATION ledger_line (not a defect list)")
     W("-" * 100)
+    W("  Each manifest entry declares ONE ledger_line, so a mutation that trips")
+    W("  several sections prints lines this comparison does not cover. The count")
+    W("  below is those lines -- it is NOT the number of undeclared lines, and it")
+    W("  must not be read as one. tools/rls-mutation/ledger_audit.py accounts for")
+    W("  every line against the full ledger table; its verdict is printed below.")
+    W("")
     if not unexpected_total:
         W("  none")
     else:
-        W("  %d line(s) printed by the probe that no manifest ledger_line declares." % len(unexpected_total))
-        W("  Each is a FINDING: the manifest states every expected line is declared.")
+        W("  %d line(s) printed by the probe outside their entry's single declared"
+          % len(unexpected_total))
+        W("  ledger_line. The full ledger table accounts for all of them.")
         W("")
         for eid, stream, ln in unexpected_total:
             W("  [%s] %s/%s" % (eid, stream, ""))
             W("      %s" % ln)
+        W("")
+        if not unexpected_total:
+            W("  none")
+        else:
+            W("  %d line(s) printed by the probe outside their entry's single declared"
+              % len(unexpected_total))
+            W("  ledger_line. The full ledger table accounts for all of them:")
+            W("")
+            for eid, stream, ln in unexpected_total:
+                W("  [%s] %s/%s" % (eid, stream, ""))
+                W("      %s" % ln)
     W("")
 
     # -- verdict count ------------------------------------------------------
@@ -380,10 +437,39 @@ def main():
     W("  entries compared        : %d" % len(rows))
     W("  MATCH                   : %d" % match)
     W("  MISMATCH                : %d" % (len(rows) - match))
-    W("  unexpected ledger lines : %d" % len(unexpected_total))
+    W("  lines outside per-mutation ledger_line : %d  (NOT a defect count; the"
+      " authoritative count is in 6b)" % len(unexpected_total))
     W("  final clean_baseline    : exit %s" % (by_id.get("clean_baseline", [{}])[-1].get("probe_exit")
                                                 if by_id.get("clean_baseline") else "NO RECORD"))
     W("  residue                 : fingerprint %s baseline" % ("EQUAL TO" if ff == BASELINE_FP else "DIFFERS FROM"))
+
+    # The two counters measure different scopes, so print them together. A reader who
+    # sees "44" above and "0" below must be able to tell in one glance that the 44 is
+    # outside this comparison's scope and the 0 is the real verdict on the whole ledger.
+    # Otherwise the larger, more alarming number is the one that gets quoted.
+    la_counts = ledger_audit_verdict()
+    W("")
+    W("-" * 100)
+    W("6b. LEDGER AUDIT -- authoritative classification of every emitted line")
+    W("-" * 100)
+    if la_counts is None:
+        W("  NOT RUN: tools/rls-mutation/ledger_audit.py could not be executed.")
+        W("  The count above is therefore unaccounted for, and this run does NOT")
+        W("  certify the ledger. Run the audit directly before trusting this output.")
+        la_failed = True
+    else:
+        W("  run by tools/rls-mutation/ledger_audit.py against ledger-lines.md:")
+        for line in la_counts:
+            W("    %s" % line)
+        la_failed = any("LEDGER AUDIT FAILED" in l for l in la_counts)
+
+    # A printed failure is not a failed run. If the ledger audit could not run, or
+    # ran and failed, this verifier does not certify the ledger -- and that has to
+    # reach the exit code, or a script reading it sees a clean 0 and nobody reads
+    # section 6b.
+    if la_failed:
+        W("")
+        W("  LEDGER AUDIT DID NOT PASS. This run does not certify the ledger.")
 
     W("-" * 100)
     W("8. FULL LEDGER PER ENTRY (verbatim, deduped; tag marks a stderr echo)")
@@ -413,7 +499,12 @@ def main():
     with open(OUT, "w", encoding="utf-8") as fh:
         fh.write(text)
     print(text)
-    return 0
+    # The MISMATCH count above is this tool's own verdict. The ledger audit is a second,
+    # independent verdict on the same run, and its failure has to reach the exit code
+    # too: a caller that checks only the exit code would otherwise read a clean 0 over an
+    # uncertified ledger. 4 is distinct from 3, which the tool already uses for a
+    # MISMATCH, so the two failures stay distinguishable.
+    return 4 if la_failed else 0
 
 
 if __name__ == "__main__":
