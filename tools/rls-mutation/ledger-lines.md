@@ -183,10 +183,23 @@ reason.
 
 Found while proving the above; each is a check that could not fail.
 
-1. `:'u9a_w2_rows'` / `:'u9a_w3_rows'` — `\gset r9a_` defines `r9a_*`, so the probe
-   died with `syntax error at or near ":"` and never ran. Fixed to `:'r9a_w2_rows'`.
-2. `iso.d_probe_a` was read at three sites and never set. Fixed with an explicit
-   `set_config`.
+Two of the entries in this list were checked by an independent reviewer and are
+**withdrawn**, because no commit is in the state they describe. Both were written
+from memory rather than from a command, and both are kept here so the error is
+visible rather than quietly deleted:
+
+1. **WITHDRAWN.** The claim was that the probe "died with `syntax error at or near
+   ":"`" because `:'u9a_w2_rows'` did not exist. That identifier appears in no
+   commit — grepping the pre-B1.1 blob `52e545b8` for `u9a_w2_rows` returns 0
+   matches. What the tip actually carries is TWO prefixes on purpose: `\gset u9a_`
+   (line 622) defines the outcome strings `u9a_w1..w6`, and `\gset r9a_` (line 768)
+   defines the counts parsed from them. The assertions read both —
+   `:'r9a_w2_rows' > 0` (line 772) for the number, `:'u9a_w2'` (line 774) for the
+   message. The two coexist by design.
+2. **WITHDRAWN.** The claim was "`iso.d_probe_a` was read at three sites and never
+   set". It is read at TWO sites (lines 966 and 1014) and set at line 884, all inside
+   `f251f9a` — and `git log -S'iso.d_probe_a'` shows that commit INTRODUCES the
+   symbol, so no earlier commit had it unset.
 3. The restore used `SELECT convert_from(decode(…))`, which **prints** a definition
    instead of executing it: psql exits 0, the restore reports success, the database
    stays mutated. `executor.py`'s fingerprint gate **does** catch it — proven, not
