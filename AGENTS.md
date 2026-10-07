@@ -111,47 +111,8 @@ converts them, producing a difference that is an artefact of the measurement.
 
 Fuller notes, with the measured examples: `tools/rls-mutation/campaign_paths.py` and
 `tools/rls-mutation/ledger-lines.md`.
-## Rules for claims in descriptions and the ledger
-
-These exist because a reviewer found real errors in claims that had already passed
-an automated check. Every one of them was a sentence about the repository written
-from memory or inference instead of the output of a command.
-
-**No evidence without a command.** Every number, SHA, or claim carries the command
-that produced it, as `cmd -> result`. If it cannot be measured, write
-`not verified` or delete it. A claim nobody can re-run is a liability.
-
-**A claim stays bound to the commit it was measured on.** When a figure moves from
-one PR to another it keeps its original SHA, and it never gets a new label attached.
-Attributing `868728c`'s numbers to `1bfa392` is exactly this failure.
-
-**Negation needs a direct check.** "X does not contain Y" is the easiest sentence to
-get wrong. Run `git cat-file -e` or `git log --diff-filter=A` before writing it. Note
-that git's own wording varies by git version and by cwd — claim the exit code
-(`; echo rc=$?`), not its prose.
-
-**Write the expected number down first, then measure.** For any change to the branch
-shape, state the expected count before running it ("#3 will show 27"). If the
-measurement differs, stop and explain before continuing.
-
-**Verify the published text, not the local file.** `gh pr view <n> --repo
-noursteem020-hue/wacrm --json body`, never the draft on disk. Then run
-`python tools/verify-pr-body.py --pr <n>`: it re-runs every `cmd -> result` line in
-the published body and fails if any re-derives differently.
-
-**`gh` must name the repo.** Without `--repo`, it reads the `upstream` remote, whose
-PR #4 is a different PR. It answers with exit 1 instead of erroring, so the mistake
-looks like a small number.
-
-**The author does not adjudicate.** After writing a description, a fresh agent with
-an empty context re-derives every SHA and number in it. The author reads their own
-sentence as correct because they wrote it. Disagreements go back to the reviewer
-with the evidence attached, and the reviewer closes them.
-
-**Descriptions state current truth only.** The history of corrections and withdrawals
-belongs in `tools/rls-mutation/ledger-lines.md`, which records them without deleting
-them. A PR body is what a reviewer is about to look at, not a list of how often the
-agent was wrong.
+Rules 1-10 above are the whole set. The sections after them add only what
+those ten could not say yet; each says so where it sits.
 
 ## Keep the output of every run you will ever need to explain
 
@@ -218,3 +179,72 @@ And the same rule as reports, one level down: **a message may not restate a numb
 if it were fresh.** Stale numbers in a message outlive the commit by years and there
 is no tool that will ever re-derive them.
 
+
+## Three lessons from the review rounds that had no rule
+
+**An artefact must name the commit it came from.** `docs/evidence/suite/npm-test-tip.txt`
+was cited for two different commits in one session: the file carried no SHA, so nothing
+distinguished the run at `20fa752` from the run at `867ced9`, and a stale copy was
+laundered into a fresh claim. `acc352d` and `d13df3d` are both commits whose message
+asserted a measurement; only the second made one. Both artefacts now open with a header
+— `cmd:`, `commit:`, `node:` — so the file states its own provenance:
+
+```
+head -2 docs/evidence/suite/npm-test-tip.txt
+# cmd:     npm ci && npm test
+# commit:  867ced993a27f174a4f16ea49da589efe711b1fe
+```
+
+A 0-byte file is not an artefact; `tsc-tip.txt` was empty and was cited as evidence
+until it recorded the command, the commit, the node version and the exit code.
+
+**Pin a range on both ends, or do not state it.** `git rev-list --count
+feat/multi-tenant-foundation..docs/rls-evidence-boundaries` changes when either end
+moves, and a new commit on `#1` or a merge that deletes the branch breaks the claim.
+`9e1773c..acc352d -> 35` cannot change. The only live count worth publishing is
+`gh pr view <n> --json commits` — and that one is best left to the reader.
+
+**Never write a number that invalidates itself.** PR #3's commit count went stale on
+every push, and each correction of it was another commit, which made it staler. Eight
+corrections later the number was removed from the description entirely and the base
+branch's SHA took its place. If a claim must be edited every time something unrelated
+happens, it does not belong in prose — the command that produces it does.
+
+## Two shell traps in this environment, both already paid for
+
+**`bash -c` from a Python subprocess fails here.** `subprocess.run(["bash","-c", ...])`
+returns rc=1 with `<3>WSL (679450 - Relay) ERROR: CreatePro…` and no command output at
+all — six commands run that way all reported the same unrelated WSL error. It is not a
+failure of the commands. `tools/verify-pr-body.py` runs its claims through
+`shutil.which("bash")` with `-c` and works, so the difference is the environment it
+inherits, not the flag; when a batch of commands suddenly reports one identical error,
+suspect the launcher before believing six failures.
+
+**A native Windows program does not take an MSYS path.** `git -C /c/Users/...` and
+`node /tmp/x.js` fail with "cannot change to" / "not found" even though `cd
+/c/Users/...` works, because path translation is disabled. Pass `C:/Users/...` to git,
+gh, node and npm. This has cost three worktrees' worth of confusion.
+
+## The failure journey, so the rules are not abstract
+
+Every rule above was bought with a real error, recorded in
+`tools/rls-mutation/ledger-lines.md` with the commands that settle each one:
+
+| rule | what it cost |
+|---|---|
+| no evidence without a command | `:'u9a_w2_rows'` asserted as a syntax error; it is in no probe — `git grep u9a_w2_rows HEAD -- src/lib/tenant/isolation.sql` exits 1 with no output, and the one file that mentions it is this ledger's |
+| stay bound to the commit | suite counts measured at `868728c`, relabelled `1bfa392` |
+| negation needs a direct check | "read at three sites and never set" — two sites, and set in the same commit |
+| predict before executing | 64 commits where 24 were expected, and no stop to explain it |
+| verify the published artifact | edits to a local draft proving nothing about the PR |
+| a statement about work state | "absent from every run" — present in the committed B2 evidence |
+| the author does not review | five real errors among claims the automated check had already passed |
+| break every gate | a matcher made lenient until it printed the expected answer, twice |
+| bytes git holds | `git show … \| md5sum` turning CRLF into a false byte difference |
+| artefact names its commit | `npm-test-tip.txt` cited for two commits, one of them a lie |
+| pin both ends | a range claim broken by a branch move |
+| no self-invalidating number | eight commits spent correcting one stale count |
+| a 0 needs a positive control | `grep -ci 'icu\|hostile'` returning 0 on a file that contained two hits |
+| comparison claims are measured | "it silently drops `paths`" — four commands disproved it |
+| reports are claims | "measured at 867ced9" while the committed file was from `acc352d` |
+| messages are not evidence | `35017d9`'s message asserting a run its diff does not contain |
