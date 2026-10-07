@@ -53,6 +53,31 @@ EXPECTED_DEPENDENT_POLICIES = 98
 EXPECTED_PROBE_BLOB = "f50a7d80a9e756e1a0c7aa3739bb935c9c80f463"
 
 
+# --- how to compare file bytes across git, and what not to do ------------------
+#
+# Verify a committed file is unchanged with git's own blob hash, never with md5sum
+# on a pipe:
+#
+#     git rev-parse <commit>:<path>          # the committed bytes
+#     git hash-object <path>                 # the working bytes
+#
+# Both must be equal in a clean tree. Do NOT do this:
+#
+#     git show <commit>:<path> | md5sum       # WRONG
+#
+# git's output goes through a pipe, and this repository's files carry CRLF: the
+# blob at bd7ed58 and the worktree file hashed identically under `git hash-object`
+# (9529a37d...) yet differed under `md5sum` on the piped form, because the pipe
+# converted 14 CR bytes to LF. That difference is an artefact of the measurement,
+# not of the file, and it cost a false alarm about fabricated evidence.
+#
+# This is the third time CR-vs-LF has bitten this campaign. The first two were in
+# the restore path: a body that looked identical in an editor produced a third
+# md5, and a restore that printed its definition instead of executing it. Both
+# times the lesson was the same -- compare the bytes git holds, not bytes a pipe
+# reassembled.
+
+
 def ensure_evidence_dir():
     os.makedirs(EVIDENCE, exist_ok=True)
     return EVIDENCE

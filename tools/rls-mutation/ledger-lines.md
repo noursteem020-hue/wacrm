@@ -161,6 +161,24 @@ indistinguishable from the silent downgrade it was introduced to prevent. T4 in
 `tools/rls-mutation/audit_breaktest.py` blanks the name and requires the failure,
 and preflight6.py runs that test before it touches the database.
 
+## Comparing file bytes: use git's blob hash, not md5sum on a pipe
+
+Recorded here because it nearly cost a false accusation of fabricated evidence, and
+because the same CR-vs-LF trap has now bitten this campaign three times.
+
+```
+git rev-parse <commit>:<path>     # committed bytes   -> 9529a37d...
+git hash-object <path>            # working bytes     -> 9529a37d...   equal
+git show <commit>:<path> | md5sum # WRONG: differs
+```
+
+`executor.jsonl` is byte-identical between `bd7ed58` and `HEAD`, but its md5 changes
+when `git show` pipes it, because the pipe turns this repository's 14 CR bytes into
+LF. The blob hash is the only statement about bytes here that survives a reviewer
+running it on another machine. The rule is in `tools/rls-mutation/campaign_paths.py`
+beside `EXPECTED_PROBE_BLOB`, which is itself a `git rev-parse` value for the same
+reason.
+
 ## Defects fixed in the tooling, not the probe
 
 Found while proving the above; each is a check that could not fail.
