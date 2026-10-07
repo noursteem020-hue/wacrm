@@ -244,10 +244,28 @@ An earlier draft of PR #4 and PR #3 said the suite was flaky, citing one run tha
 failed on `src/i18n/icu-safety.test.ts` ("every {{...}} / raw-HTML message is
 consumed via t.raw() or t.rich()"). That failure did not reproduce in five runs, and
 `git grep -ci 'icu|hostile'` over both committed suite files returns 0, so no
-committed evidence supports it. Claim withdrawn.
+committed evidence supports it. Claim withdrawn, and the reason it cannot be settled
+is recorded rather than papered over: that run's output was never kept. See "The
+defect that caused this" at the end of this document — that rule is the actual
+lesson, and it is now in `AGENTS.md`.
 
-What I do not know: why that single run failed. I did not capture its output, and the
-file it would have come from was overwritten.
+## The defect that caused this: output that was never kept
+
+The lesson from the ICU failure is not the cause, which is still unknown. It is that
+a single unexplained failure consumed four hypothesis rounds and one reviewer cycle
+because the run's output was piped through `grep` and discarded. With the output in
+hand the question would have been answerable in one minute.
+
+Two rules, now in `AGENTS.md`:
+
+- **Capture before reading.** `npm test 2>&1 | tee runs/<sha>-<n>.txt`, relative
+  path, never piped straight into `grep`. Sanitise before it is committed: strip
+  absolute paths and wall-clock timestamps.
+- **A failure is copied to evidence before it is re-run.** Re-running is how the
+  original output gets lost.
+
+This is recorded here because the same campaign already lost evidence twice, and a
+rule that only lives in a commit message is lost with the commit.
 
 ## Two hypotheses for the ICU failure, both tested, neither confirmed
 
@@ -285,12 +303,26 @@ MEASURED, at `20fa752`, deliberately broken file each time, then removed:
 | a file under `.claude/` | rc=0, skipped | rc=0, skipped |
 | files checked, `--listFilesOnly` | 2453 | 2453, identical set |
 
-So `--ignoreConfig` was not vacuous: it saw the same 2453 files, caught the same
-errors, and skipped the same file. Its real defect is narrower — exit 1 where the
-configured project exits 2, and it silently drops `paths` and `exclude` while
-appearing to do the same job. A reviewer cannot tell which invocation ran from a bare
-`rc=0`. The claims now use `-p tsconfig.json`, which is correct by construction and
-whose break test is `rc=2`.
+So `--ignoreConfig` was not vacuous: it saw the same 2453 files and caught every
+error. Two real differences remain, both MEASURED:
+
+- it exits `1` where the configured project exits `2`:
+  `const a: number = "s"` -> `-p tsconfig.json` rc=2, `--ignoreConfig` rc=1,
+  reproducibly across runs.
+
+That exit code is the ONLY difference I could measure. In particular my earlier
+sentence "it silently drops `paths` and `exclude`" was NOT measured, and the
+evidence does not support it: `--showConfig` reports the same `strict` and the same
+`paths` for both invocations; `@/lib/tenant/resolve` resolves to
+`src/lib/tenant/resolve.ts` under both; the alias `paths` does not define,
+`@components/nope`, fails as `TS2307` under both; and `--traceResolution` under
+`--ignoreConfig` still prints `'paths' option is specified`. The claim is withdrawn
+rather than reworded.
+
+So the honest summary is: same files, same errors caught, same files skipped, same
+resolution behaviour on this toolchain, and a different exit code. A reviewer cannot
+tell which invocation ran from a bare `rc=0`, which is the whole reason the claims
+now name `-p tsconfig.json` explicitly — correct by construction, break test `rc=2`.
 
 Also recorded, because it nearly became a wrong claim: the `.claude/` row shows that
 `-p` does NOT check every file on disk — it honours `include`/`exclude`. Neither

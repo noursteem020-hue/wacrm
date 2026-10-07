@@ -152,3 +152,19 @@ with the evidence attached, and the reviewer closes them.
 belongs in `tools/rls-mutation/ledger-lines.md`, which records them without deleting
 them. A PR body is what a reviewer is about to look at, not a list of how often the
 agent was wrong.
+
+## Keep the output of every run you will ever need to explain
+
+A single unexplained test failure in this repository cost four hypothesis rounds and
+a reviewer cycle, because the run's output was piped into `grep` and thrown away. The
+cause is still unknown. The output would have answered it in a minute.
+
+- **Capture before you read.** `npm test 2>&1 | tee runs/<sha>-<n>.txt` — relative
+  path, never piped straight into a filter. Sanitise before committing: strip
+  absolute paths and wall-clock timestamps, or the artefact names the author's
+  machine and cannot be re-checked elsewhere.
+- **Copy a failure to evidence before you re-run it.** Re-running is exactly how the
+  original output disappears.
+- **A claim about a comparison is measured or it is withdrawn.** "It silently drops
+  config" is a claim about a tool, and it was wrong until four commands disproved it.
+
