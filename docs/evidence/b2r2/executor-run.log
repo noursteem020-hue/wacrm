@@ -1,0 +1,23 @@
+PRECONDITION OK  blob=f50a7d80a9e7 fp=bfae0aea0576 md5=026fa63f24c5 dep=98
+CAPTURED definition: 758 chars, 20 CR, text-md5=396567acf295
+[ 0] clean_baseline         exit=0 fp_matches=True
+[ 1] rls_disabled           exit=3   fails=29 restore_rc=0 fp_match=True md5_match=True
+[ 2] update_using_true      exit=3   fails=13 restore_rc=0 fp_match=True md5_match=True
+[ 3] update_with_check_true exit=3   fails=9  restore_rc=0 fp_match=True md5_match=True
+[ 4] select_using_true      exit=3   fails=9  restore_rc=0 fp_match=True md5_match=True
+[ 5] insert_with_check_true exit=3   fails=3  restore_rc=0 fp_match=True md5_match=True
+[ 6] select_plus_update_true exit=3   fails=25 restore_rc=0 fp_match=True md5_match=True
+[ 7] update_policy_missing  exit=3   fails=5  restore_rc=0 fp_match=True md5_match=True
+[ 8] delete_using_true      exit=3   fails=3  restore_rc=0 fp_match=True md5_match=True
+[ 9] function_body_true     exit=3   fails=29 restore_rc=0 fp_match=True md5_match=True
+[10] clean_baseline         exit=0 fp_matches=True
+========================================================================
+FINAL fingerprint   : bfae0aea057682e5403f70c94f0b5f61
+BASELINE fingerprint: bfae0aea057682e5403f70c94f0b5f61
+MATCH               : True
+FINAL md5(prosrc)   : 026fa63f24c5f54584758c4f5d314408
+BASELINE md5(prosrc): 026fa63f24c5f54584758c4f5d314408
+MATCH               : True
+DEPENDENT POLICIES  : 98
+RECAPTURE IDENTICAL : True (758 chars, 20 CR)
+FINAL pg_proc attrs : 026fa63f24c5f54584758c4f5d314408 true search_path=public s u true postgres 14 target_account_id,min_role f 510 20

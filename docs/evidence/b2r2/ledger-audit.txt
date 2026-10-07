@@ -1,0 +1,38 @@
+classified rows in the document : 31
+distinct FAIL lines in the run  : 16
+UNCLASSIFIED                    : 9
+   !! function_body_true,rls_disabled,select_plus_update_true,update_using_true,update_with_check_true  a fail cross account update left row owned by account b and row owned by an account that is neither caller nor
+   !! function_body_true,rls_disabled,select_plus_update_true,update_using_true,update_with_check_true  a fail drift after the unscoped update account a owns of its seeded probe row a wider policy hands rows to ano
+   !! function_body_true,rls_disabled,select_plus_update_true,update_policy_missing,update_using_true  a fail drift the unscoped update touched row the baseline is a wider policy hands over other accounts a narrow
+   !! function_body_true,rls_disabled,select_plus_update_true,update_using_true  a fail leak an unscoped update touched row not owned by the caller the update policy was open enough to write 
+   !! function_body_true,rls_disabled,select_plus_update_true,update_using_true,update_with_check_true  a fail leak the unscoped update moved probe row into account b written counted as postgres before rollback a s
+   !! function_body_true,rls_disabled,select_plus_update_true,select_using_true  a fail user a sees probe row outside its own account
+   !! function_body_true,rls_disabled,select_plus_update_true,select_using_true  a fail user a sees probe row owned by account b cross account select leak
+   !! function_body_true,rls_disabled,select_plus_update_true,select_using_true  b fail user b sees probe row outside its own account
+   !! function_body_true,rls_disabled,select_plus_update_true,select_using_true  b fail user b sees probe row owned by account a cross account select leak
+
+document rows not seen this run : 24
+   -- mutation
+   -- a fail user a sees n probe row owned by account b cross account select leak
+   -- a fail user a sees n probe row outside its own account
+   -- a fail user a reads of its own rows
+   -- b fail user b sees n probe row owned by account a cross account select leak
+   -- b fail user b sees n probe row outside its own account
+   -- fail cross account insert was rejected for the wrong reason
+   -- a fail the positive control row was not actually modified
+   -- a fail cross account update was rejected for the wrong reason
+   -- a fail cross account update with no account filter was rejected for the wrong reason
+   -- a fail instrument row count and the counted rows disagree
+   -- a fail leak an unscoped update moved n probe row into account b
+   -- a fail drift after the unscoped update account a owns n of its m seeded probe row
+   -- a fail positive control after the write path is broken not merely strict
+   -- a fail cross account update left n row owned by account b and m row owned by an account that is neither caller
+   -- a fail instrument the unscoped update s row count and the ownership census disagree
+   -- a fail leak an unscoped update touched n row not owned by the caller
+   -- a fail drift the unscoped update touched n row the baseline is m
+   -- a fail cross account update left n row owned by account b
+   -- b fail positive control before
+   -- b fail positive control after
+   -- run
+   -- g
+   -- g
