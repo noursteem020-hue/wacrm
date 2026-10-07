@@ -88,10 +88,108 @@ delete_using_true        bfae0aea057682e5403f70c94f0b5f61       True     True
 function_body_true       bfae0aea057682e5403f70c94f0b5f61       True     True
 
 ----------------------------------------------------------------------------------------------------
-6. LEDGER LINES NOT ACCOUNTED FOR BY THE MANIFEST
+6. LEDGER LINES OUTSIDE THE PER-MUTATION ledger_line (not a defect list)
 ----------------------------------------------------------------------------------------------------
-  44 line(s) printed by the probe that no manifest ledger_line declares.
-  Each is a FINDING: the manifest states every expected line is declared.
+  Each manifest entry declares ONE ledger_line, so a mutation that trips
+  several sections prints lines this comparison does not cover. The count
+  below is those lines -- it is NOT the number of undeclared lines, and it
+  must not be read as one. tools/rls-mutation/ledger_audit.py accounts for
+  every line against the full ledger table; its verdict is printed below.
+
+  44 line(s) printed by the probe outside their entry's single declared
+  ledger_line. The full ledger table accounts for all of them.
+
+  [rls_disabled] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [rls_disabled] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [rls_disabled] probe_stdout,probe_stderr/
+      [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL the positive-control row is no longer owned by account A (rows found: 0), so the control is not proving anything
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1, 1 row(s) actually moved): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE with no account filter was ALLOWED (ALLOWED rows=2, 2 row(s) actually moved): user A moved every probe row it can see into account B
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=5, 5 row(s) written), counted as postgres before rollback. A statement with no WHERE needs no read privilege, so contacts_update's own USING scoped the scan and its WITH CHECK was the only gate on the cross-account post-image
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL drift: after the unscoped UPDATE account A owns 0 of its 2 seeded probe row(s) (ALLOWED rows=5). A WIDER policy hands rows to another account; a NARROWER one (contacts_update dropped) moves none of them
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 3 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [rls_disabled] probe_stdout,probe_stderr/
+      [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+  [update_using_true] probe_stdout/
+      [9a] FAIL positive control after: user A could not edit its OWN row after the negative probes (ALLOWED rows=0): the write path is broken, not merely strict
+  [update_using_true] probe_stdout,probe_stderr/
+      [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=5, 5 row(s) written), counted as postgres before rollback. A statement with no WHERE needs no read privilege, so contacts_update's own USING scoped the scan and its WITH CHECK was the only gate on the cross-account post-image
+  [update_using_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: after the unscoped UPDATE account A owns 0 of its 2 seeded probe row(s) (ALLOWED rows=5). A WIDER policy hands rows to another account; a NARROWER one (contacts_update dropped) moves none of them
+  [update_using_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [update_using_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 3 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [update_with_check_true] probe_stdout/
+      [9a] FAIL positive control after: user A could not edit its OWN row after the negative probes (ALLOWED rows=0): the write path is broken, not merely strict
+  [update_with_check_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: after the unscoped UPDATE account A owns 0 of its 2 seeded probe row(s) (ALLOWED rows=2). A WIDER policy hands rows to another account; a NARROWER one (contacts_update dropped) moves none of them
+  [update_with_check_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 3 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [select_using_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [select_using_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL the positive-control row is no longer owned by account A (rows found: 0), so the control is not proving anything
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1, 1 row(s) actually moved): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE with no account filter was ALLOWED (ALLOWED rows=2, 2 row(s) actually moved): user A moved every probe row it can see into account B
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=5, 5 row(s) written), counted as postgres before rollback. A statement with no WHERE needs no read privilege, so contacts_update's own USING scoped the scan and its WITH CHECK was the only gate on the cross-account post-image
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: after the unscoped UPDATE account A owns 0 of its 2 seeded probe row(s) (ALLOWED rows=5). A WIDER policy hands rows to another account; a NARROWER one (contacts_update dropped) moves none of them
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [select_plus_update_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 3 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [function_body_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  [function_body_true] probe_stdout,probe_stderr/
+      [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  [function_body_true] probe_stdout,probe_stderr/
+      [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL the positive-control row is no longer owned by account A (rows found: 0), so the control is not proving anything
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1, 1 row(s) actually moved): user A re-pointed its own row at account B's account_id and the WITH CHECK policy did not stop it
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE with no account filter was ALLOWED (ALLOWED rows=2, 2 row(s) actually moved): user A moved every probe row it can see into account B
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=5, 5 row(s) written), counted as postgres before rollback. A statement with no WHERE needs no read privilege, so contacts_update's own USING scoped the scan and its WITH CHECK was the only gate on the cross-account post-image
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: after the unscoped UPDATE account A owns 0 of its 2 seeded probe row(s) (ALLOWED rows=5). A WIDER policy hands rows to another account; a NARROWER one (contacts_update dropped) moves none of them
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over other accounts; a NARROWER one (missing UPDATE policy) breaks the write path
+  [function_body_true] probe_stdout,probe_stderr/
+      [9a] FAIL cross-account UPDATE left 3 row(s) owned by account B and 0 row(s) owned by an account that is neither caller nor B, counted AS POSTGRES: a probe row moved out of the caller's account
+  [function_body_true] probe_stdout,probe_stderr/
+      [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+
+  44 line(s) printed by the probe outside their entry's single declared
+  ledger_line. The full ledger table accounts for all of them:
 
   [rls_disabled] probe_stdout,probe_stderr/
       [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
@@ -188,9 +286,21 @@ function_body_true       bfae0aea057682e5403f70c94f0b5f61       True     True
   entries compared        : 10
   MATCH                   : 10
   MISMATCH                : 0
-  unexpected ledger lines : 44
+  lines outside per-mutation ledger_line : 44  (NOT a defect count; the authoritative count is in 6b)
   final clean_baseline    : exit 0
   residue                 : fingerprint EQUAL TO baseline
+
+----------------------------------------------------------------------------------------------------
+6b. LEDGER AUDIT -- authoritative classification of every emitted line
+----------------------------------------------------------------------------------------------------
+  run by tools/rls-mutation/ledger_audit.py against ledger-lines.md:
+    classified rows in the document : 28
+    distinct FAIL lines in the run  : 20
+    UNCLASSIFIED                    : 0
+    SILENT REQUIRED ROWS            : 0
+    DEFERRED required_untested      : 2
+    MALFORMED required_untested     : 0
+    audit exit code: 0
 ----------------------------------------------------------------------------------------------------
 8. FULL LEDGER PER ENTRY (verbatim, deduped; tag marks a stderr echo)
 ----------------------------------------------------------------------------------------------------
