@@ -57,12 +57,13 @@
     CREATE POLICY contacts_update ON public.contacts AS PERMISSIVE FOR UPDATE TO public USING (is_account_member(account_id, 'agent'::account_role_enum));
   restore_is_idempotent: true
   should_be_red: true
-  predicted_red: false
-  predicted_exit: 0
+  predicted_red: true
+  predicted_exit: 3
   matching_rule: prefix
-  ledger_line: "[9a] FAIL cross-account UPDATE was ALLOWED ("
-  gap_if_green: The missing probe is the UNSCOPED account_id move. With a WHERE clause the UPDATE needs read privilege, so PostgreSQL applies the SELECT policy to the NEW row too and is_account_member(B) rejects it - the SELECT policy acts as a second WITH CHECK. An UPDATE with no WHERE needs no read privilege, so the new row is never checked against SELECT; under this mutation all of A's rows should move to B. The probe only attempts the targeted (WHERE) shape, so the unscoped shape is unverified.
-  missing_probe: unscoped account_id move (UPDATE contacts SET account_id = <B> with no WHERE)
+  ledger_line: "[9a] FAIL leak: the unscoped UPDATE moved"
+  gap_if_green: The unscoped move IS now asserted by the [9a] w6 block (leak, drift and instrument arms), added in B1.1 at commit f251f9a. The three UPDATE probes in isolation.sql that carried a WHERE clause could detect a missing or narrowed UPDATE policy, but not a widened WITH CHECK: the targeted shape is still caught by the SELECT policy acting as a second WITH CHECK.
+  missing_probe: unscoped account_id move (UPDATE contacts SET account_id = <B> with no WHERE) -- now covered by the w6 block
+  comment: 'MEASURED 2026-10-07 by a full Executor re-run against the B1.1 probe, not by the side-channel acceptance harness. predicted_red was false and predicted_exit 0 before this edit, both describing the PRE-B1.1 probe where this mutation went green. MEASURED now: exit 3, and the declared line is present verbatim -- the leak line reporting that the unscoped UPDATE moved 3 probe rows into account B with ALLOWED rows=2 and 2 rows written. The ledger_line was wrong for a second reason: it named the cross-account UPDATE was ALLOWED line, the one whose predicate the G3 fix changed. That shape returns 0 rows under this mutation, so it can no longer be the declared signal. The Verifier flagged this entry as MISMATCH before this edit, which was the Verifier working correctly: it compared the manifest promise against the run and found the manifest stale.'
   fingerprint_fields: [schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check]
 
 - id: select_using_true
