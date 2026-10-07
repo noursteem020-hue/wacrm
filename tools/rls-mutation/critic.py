@@ -35,7 +35,7 @@ import re
 
 from campaign_paths import EVIDENCE as EVID
 JSONL = os.path.join(EVID, "executor.jsonl")
-MANIFEST = os.path.join(EVID, "mutations.yaml")
+MANIFEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mutations.yaml")
 OUT = os.path.join(EVID, "critic.txt")
 
 LEDGER_RE = re.compile(r"^\[[0-9]+[a-z]?\] FAIL\b")

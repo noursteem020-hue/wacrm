@@ -26,8 +26,14 @@ import os
 import re
 
 from campaign_paths import EVIDENCE as EVID
+
+# The manifest sits beside this script, NOT beside the evidence. It used to be
+# read out of the same directory as executor.jsonl, which was true only while both
+# lived in one machine-local folder. Now that evidence can be redirected with
+# WACRM_EVIDENCE, resolving the manifest under EVID made this tool fail with
+# FileNotFoundError on any run whose evidence dir was not the manifest's dir.
+MANIFEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mutations.yaml")
 JSONL = os.path.join(EVID, "executor.jsonl")
-MANIFEST = os.path.join(EVID, "mutations.yaml")
 OUT = os.path.join(EVID, "verifier.txt")
 
 BASELINE_FP = "bfae0aea057682e5403f70c94f0b5f61"
