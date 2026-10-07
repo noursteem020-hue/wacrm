@@ -9,7 +9,7 @@ neither has, until now, ever been seen red:
 | instrument | GUC | the two sides it compares | instrument FAIL line |
 |---|---|---|---|
 | `w4_instrument` | `iso.section9a.w4_instrument` | `(SELECT count(*) FROM contacts WHERE company = <w4 tag>)` **vs** the unscoped UPDATE's own `ROW_COUNT` | `[9a] FAIL instrument: ROW_COUNT and the counted rows disagree (...)` (probe line 832) |
-| `d6_instrument` | `iso.section9b.d6_instrument` | the DELETE's `ROW_COUNT` **vs** `census_before - census_after` | (computed and echoed; **no FAIL line references it — see "Not achieved" below**) |
+| `d6_instrument` | `iso.section9b.d6_instrument` | the DELETE's `ROW_COUNT` **vs** `census_before - census_after` | (asserted at probe line 1116; fires when the census is broken) |
 | `w6_instrument` | `iso.section9a.w6_instrument` | `(v_n > 0)` **vs** `w6_b > a_expected_b` | `[9a] FAIL instrument: the unscoped UPDATE's ROW_COUNT and the ownership census disagree (...)` (probe line 802) |
 
 If the counting is wrong, every leak verdict derived from it is worthless, so the
