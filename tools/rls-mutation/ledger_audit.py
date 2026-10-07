@@ -83,6 +83,11 @@ def main():
             stems.setdefault(normalise(s), set()).add(d["id"])
 
     print(f"distinct FAIL lines in the run  : {len(stems)}")
+    # MEASURED: the raw set holds 20 lines but normalises to 18. Two pairs differ
+    # only in their counts -- "ALLOWED rows=5" vs "ALLOWED rows=2" under
+    # function_body_true and update_with_check_true respectively -- which is one
+    # template and therefore one classification, not two gaps. Printed so the
+    # difference from a raw count is never left unexplained.
     unclassified = [(sorted(ids), k) for k, ids in sorted(stems.items())
                     if not classified(k, rows)]
 
