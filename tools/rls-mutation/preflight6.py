@@ -535,6 +535,45 @@ def check_entry(entry, base_fp, capture, break_it=False, m10_restore=None):
     return ok, lines
 
 
+def auditor_breaktests():
+    """Run the ledger auditor's own break tests. Required, not optional.
+
+    The auditor is what certifies that every FAIL line the probe emits is declared
+    in ledger-lines.md, and that every declared `required` line was actually
+    emitted. Those two verdicts are worth nothing from a checker that has never
+    been seen failing -- and this one already went from a false negative (16 of 16
+    reported unclassified) to a false positive (a plausible undeclared line
+    accepted as classified). It earns its say by failing on demand, every time.
+
+    Three tests, each of which the auditor had to be broken to pass:
+      T1  removal  -- delete one classification; the rows it covered must go
+                      unclassified and nothing else may.
+      T2  injection -- add an undeclared line worded with real vocabulary; it must
+                      be rejected.
+      T3  silence  -- declare a required row no mutation emits; it must be
+                      reported silent.
+
+    Runs out of process so a matcher that raises cannot take the preflight with it,
+    and returns the child's exit code.
+    """
+    import pathlib as _p
+    brk = _p.Path(__file__).resolve().parent / "audit_breaktest.py"
+    if not brk.exists():
+        print(f"FAIL {brk.name} is missing, so the auditor is unproven")
+        return False
+    r = subprocess.run([sys.executable, str(brk)], capture_output=True, text=True)
+    tail = [l for l in r.stdout.splitlines() if l.startswith(("T1 ", "T2 ", "T3 "))]
+    for l in tail:
+        print("  " + l)
+    verdict = [l for l in r.stdout.splitlines() if "ALL THREE PASS" in l]
+    if r.returncode != 0 or not verdict:
+        print("  --- break test output tail ---")
+        for l in (r.stdout + r.stderr).splitlines()[-12:]:
+            print("  " + l[:150])
+        return False
+    return True
+
+
 def self_test(base_fp):
     """Two different claims, both required:
       1. FIDELITY   drop + recreate the policy with its ORIGINAL text returns the
@@ -698,6 +737,17 @@ def main():
 
     if not tool_selfcheck(base_fp):
         return 3
+
+    # The auditor must be able to fail, or its clean verdict on the ledger means
+    # nothing. Run its break tests FIRST, before any mutation: a change to the
+    # matcher that makes it blind must abort the campaign, not be discovered by a
+    # later reader trusting a "0 unclassified". This is the same discipline the
+    # fingerprint and the entry count get above.
+    if not auditor_breaktests():
+        print("FAIL the ledger auditor's break tests did not pass.")
+        print("A matcher that cannot be seen failing cannot certify the ledger.")
+        return 3
+
     if len(entries) != EXPECTED_ENTRIES:
         print(f"FAIL entry count {len(entries)} != {EXPECTED_ENTRIES}")
         return 1
