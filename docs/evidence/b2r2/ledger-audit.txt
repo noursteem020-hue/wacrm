@@ -1,4 +1,4 @@
-classified rows in the document : 27
+classified rows in the document : 28
 distinct FAIL lines in the run  : 20
   OK   [function_body_true,rls_disabled,select_plus_update_true,select_using_true] required           <- `[7a] FAIL user A sees N probe row(s) outside its own accoun
        [7a] FAIL user A sees 1 probe row(s) outside its own account (any account, not only B)
@@ -41,3 +41,10 @@ distinct FAIL lines in the run  : 20
   OK   [delete_using_true,function_body_true,rls_disabled] required           <- `[9b] FAIL cross-account DELETE: account B's probe row did n
        [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expect
 UNCLASSIFIED                    : 0
+  EXEMPT [required, proven by M-inst] `[9a] FAIL instrument: ROW_COUNT and the counted rows disagr
+       M-inst
+  EXEMPT [required, proven by M-inst] `[9a] FAIL instrument: the unscoped UPDATE's ROW_COUNT and t
+       M-inst (w6 variant)
+  EXEMPT [required, proven by M-inst] `[9b] FAIL instrument: the unscoped DELETE's ROW_COUNT and t
+       M-inst (`isolation-minst-d6.sql`)
+SILENT REQUIRED ROWS            : 0
