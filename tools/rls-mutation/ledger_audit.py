@@ -177,7 +177,43 @@ def main():
         print(f"   !! [{ids}] {line}")
         print("      a defect by the document's own rule: add a classified row for")
         print("      it, or prove the probe cannot emit it.")
-    return 1 if unmatched else 0
+
+    # ------------------------------------------------------------------ reverse
+    # The forward direction asks "is every emitted line declared?". The reverse
+    # asks "did every declared `required` line actually fire?", which catches a
+    # different defect: a row that claims to be a mutation's declared signal while
+    # no mutation has ever emitted it. Such a row is either a dead assertion or an
+    # unmeasured gap, and either way it is not `required`.
+    #
+    # Rows whose only evidence is the M-inst negative controls are exempt: the
+    # instrument lines exist to fire when the CENSUS is broken, and no mutation in
+    # the manifest breaks a census. They are proven by minst/ instead, which is why
+    # the mutation cell names M-inst. Exempting them by name would be an
+    # allow-list that hides regressions, so the exemption is derived: a row is
+    # exempt only if its declared mutations are all M-inst.
+    silent = []
+    for rx, cell, cls, mut in rows:
+        if cls != "required":
+            continue
+        fired = [ln for ln in stems if rx.search(normalise(ln))]
+        if fired:
+            continue
+        declared = [x.strip(" `") for x in mut.replace("(", "").replace(")", "").split(",")]
+        if declared and all(d.startswith("M-inst") for d in declared):
+            print(f"  EXEMPT [required, proven by M-inst] {cell[:60]}")
+            print(f"       {mut[:100]}")
+            continue
+        silent.append((cell, mut))
+        print(f"  SILENT [required, never fired] {cell[:66]}")
+        print(f"       declared for: {mut[:90]}")
+
+    print(f"SILENT REQUIRED ROWS            : {len(silent)}")
+    for cell, mut in silent:
+        print(f"   !! {cell}")
+        print(f"      declared for: {mut[:90]}")
+        print("      no mutation emitted this line. Either it is a dead assertion or")
+        print("      an unmeasured gap; it may not stay `required` until one is shown.")
+    return 1 if (unmatched or silent) else 0
 
 
 if __name__ == "__main__":

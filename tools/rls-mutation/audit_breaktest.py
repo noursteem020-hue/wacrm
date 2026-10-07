@@ -158,14 +158,77 @@ def main():
     t2_ok = c2 == 1 and any("bypassed the census" in s for _i, s in f2)
     print(f"T2 {'PASS' if t2_ok else 'FAIL -- the injected line was accepted as classified'}")
 
+    # ---------------------------------------------------------------- T3
     print()
     print("=" * 74)
-    if t1_ok and t2_ok:
-        print("BOTH PASS: the auditor can fail, and fails for the right reason.")
-        print("Its 0 unclassified on the baseline is now evidence, not a shrug.")
+    print("T3  declare a required row no mutation fires; expect SILENT REQUIRED 1")
+    print("=" * 74)
+    print("This is the REVERSE direction: the forward check asks whether every")
+    print("emitted line is declared, this asks whether every declared `required`")
+    print("line was ever emitted. A row claiming to be a mutation's signal while no")
+    print("mutation produces it is either a dead assertion or an unmeasured gap.")
+    print()
+    print("How the row is made silent: a NEW required row is added whose template no")
+    print("run line matches. Repointing an existing row is not enough -- the line it")
+    print("names still fires under some other mutation, so the row is not silent.")
+    # Take the wording from a line the probe really emits, and alter it into a
+    # plausible variant no mutation produces: the same opening, a claim nobody
+    # makes. This is the reverse of T2's injection, aimed at the other direction.
+    real = next(ln for ln in la.run_lines(JSONL.read_text(encoding="utf-8"))
+                if "cross-account DELETE" in ln)
+    # Vary the CLAIM, not a wildcard region: "did not survive" is literal prose in
+    # the real row, so changing it makes the template match nothing. Appending words
+    # after it would land inside a slot and still match.
+    silent_row = real.replace("account B's probe row did not survive",
+                              "account B's probe row did not survive the unscoped sweep")
+    silent_row = silent_row.split("Read AS POSTGRES")[0].strip().rstrip(",")
+    doc3 = work / "ledger-lines-3.md"
+    lines3 = DOC.read_text(encoding="utf-8").splitlines(keepends=True)
+    anchor = next(i for i, l in enumerate(lines3)
+                  if l.startswith("|") and "cross-account DELETE" in l and "| required |" in l)
+    # Build the row from its parsed cells, keeping the leading pipe structure right:
+    # a row that starts "||" puts the classification in the wrong cell and is
+    # silently skipped, which is what made an earlier version of this test report a
+    # PASS-shaped failure.
+    cells = [c.strip() for c in lines3[anchor].split("|")]
+    new_cells = [f"`{silent_row}`", "required", "`delete_using_true`",
+                 "added by T3: a required row no mutation emits", ""]
+    lines3.insert(anchor + 1, "|" + "|".join(new_cells) + "|\n")
+    doc3.write_text("".join(lines3), encoding="utf-8")
+    print("inserted as required, for delete_using_true:")
+    print(f"    {silent_row}")
+    # Prove the row is parseable and unmatchable BEFORE trusting the verdict: a
+    # malformed row would also report SILENT 0, for the wrong reason.
+    probe = la.rows_from_document(doc3.read_text(encoding="utf-8"))
+    parsed = [c for _rx, c, _k, _m in probe if "unscoped sweep" in c]
+    if not parsed:
+        print("ABORT: the inserted row does not parse as a classification row")
+        return 2
+    if any(rx.search(la.normalise(ln)) for rx, c, _k, _m in probe if "unscoped sweep" in c
+           for ln in la.run_lines(JSONL.read_text(encoding="utf-8"))):
+        print("ABORT: the inserted row matches a real line, so it is not silent")
+        return 2
+    print("pre-check: the row parses and matches no run line -- it is genuinely silent")
+
+    _c3, _f3, out3 = run_audit(la, doc=doc3)
+    m3 = re.search(r"SILENT REQUIRED ROWS\s+:\s+(\d+)", out3)
+    n3 = int(m3.group(1)) if m3 else None
+    print(f"\nSILENT REQUIRED ROWS = {n3}   (expected 1)")
+    for ln in out3.splitlines():
+        if ln.startswith("  SILENT"):
+            print(f"   {ln.strip()[:118]}")
+    t3_ok = n3 == 1 and "unscoped sweep" in out3
+    print(f"T3 {'PASS' if t3_ok else 'FAIL -- the auditor cannot see an untriggered required row'}")
+
+    print()
+    print("=" * 74)
+    if t1_ok and t2_ok and t3_ok:
+        print("ALL THREE PASS. Both directions of the audit have been seen failing:")
+        print("removal (T1), injection (T2), and a row that never fires (T3).")
+        print("Its 0/0 on the baseline is now evidence, not a shrug.")
         return 0
-    print("AT LEAST ONE FAILED. The baseline's 0 unclassified proves nothing until")
-    print("the auditor has been seen failing.")
+    print("AT LEAST ONE FAILED. The baseline's zeros prove nothing until the")
+    print("auditor has been seen failing in that direction too.")
     return 1
 
 
