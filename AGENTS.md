@@ -111,3 +111,44 @@ converts them, producing a difference that is an artefact of the measurement.
 
 Fuller notes, with the measured examples: `tools/rls-mutation/campaign_paths.py` and
 `tools/rls-mutation/ledger-lines.md`.
+## Rules for claims in descriptions and the ledger
+
+These exist because a reviewer found real errors in claims that had already passed
+an automated check. Every one of them was a sentence about the repository written
+from memory or inference instead of the output of a command.
+
+**No evidence without a command.** Every number, SHA, or claim carries the command
+that produced it, as `cmd -> result`. If it cannot be measured, write
+`not verified` or delete it. A claim nobody can re-run is a liability.
+
+**A claim stays bound to the commit it was measured on.** When a figure moves from
+one PR to another it keeps its original SHA, and it never gets a new label attached.
+Attributing `868728c`'s numbers to `1bfa392` is exactly this failure.
+
+**Negation needs a direct check.** "X does not contain Y" is the easiest sentence to
+get wrong. Run `git cat-file -e` or `git log --diff-filter=A` before writing it. Note
+that git's own wording varies by git version and by cwd — claim the exit code
+(`; echo rc=$?`), not its prose.
+
+**Write the expected number down first, then measure.** For any change to the branch
+shape, state the expected count before running it ("#3 will show 27"). If the
+measurement differs, stop and explain before continuing.
+
+**Verify the published text, not the local file.** `gh pr view <n> --repo
+noursteem020-hue/wacrm --json body`, never the draft on disk. Then run
+`python tools/verify-pr-body.py --pr <n>`: it re-runs every `cmd -> result` line in
+the published body and fails if any re-derives differently.
+
+**`gh` must name the repo.** Without `--repo`, it reads the `upstream` remote, whose
+PR #4 is a different PR. It answers with exit 1 instead of erroring, so the mistake
+looks like a small number.
+
+**The author does not adjudicate.** After writing a description, a fresh agent with
+an empty context re-derives every SHA and number in it. The author reads their own
+sentence as correct because they wrote it. Disagreements go back to the reviewer
+with the evidence attached, and the reviewer closes them.
+
+**Descriptions state current truth only.** The history of corrections and withdrawals
+belongs in `tools/rls-mutation/ledger-lines.md`, which records them without deleting
+them. A PR body is what a reviewer is about to look at, not a list of how often the
+agent was wrong.
