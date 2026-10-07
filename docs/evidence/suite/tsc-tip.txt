@@ -1,4 +1,4 @@
-# npx tsc --noEmit -p tsconfig.json
+# cmd:     npx tsc --noEmit -p tsconfig.json
 # commit: 867ced993a27f174a4f16ea49da589efe711b1fe
 # node:    v24.21.0
 # exit code: 0 (no diagnostics printed)
