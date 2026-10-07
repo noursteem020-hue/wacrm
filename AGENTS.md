@@ -177,3 +177,27 @@ cause is still unknown. The output would have answered it in a minute.
 - **A claim about a comparison is measured or it is withdrawn.** "It silently drops
   config" is a claim about a tool, and it was wrong until four commands disproved it.
 
+
+## Reports to the user are claims too
+
+The PR descriptions are guarded by `tools/verify-pr-body.py`. Nothing guards what I
+say *in the conversation*, and that is where the last real error came from.
+
+I reported a test measurement at a commit whose output I had not committed — the
+number was true, the file behind it was from an earlier commit. Every "measured",
+"committed", "fixed", "verified" in a status report carries the SHA and the file path
+that back it:
+
+```
+measured at 867ced9   docs/evidence/suite/npm-test-tip.txt   (committed, replaces acc352d's copy)
+fixed in 61242f9      tools/rls-mutation/minst/README.md
+re-derived 22/22      tools/verify-pr-body.py --pr 3
+```
+
+If the artefact is not committed and named, the report says "not committed" — it does
+not say the work is done. A claim I make to the user is exactly as checkable as one in
+a description, and the difference is that nobody re-runs it.
+
+A row in a table that says a check was broken, with no committed artefact showing it
+break, is a fabricated claim even when I believed it. "Loosely worded" is not a
+defence for that row; the row is deleted.
