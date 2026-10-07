@@ -11,6 +11,8 @@ entries parsed       : 10
   T2 PASS
   T3  declare a required row no mutation fires; expect SILENT REQUIRED 1
   T3 PASS
+  T4  blank the gap name on a required_untested row; expect MALFORMED 1
+  T4 PASS
 run order            : clean_baseline -> rls_disabled -> update_using_true -> update_with_check_true -> select_using_true -> insert_with_check_true -> select_plus_update_true -> update_policy_missing -> delete_using_true -> function_body_true -> clean_baseline
   OK  clean_baseline first and last, function_body_true immediately before the final clean_baseline, all 10 manifest entries walked once plus the closing baseline bookend
   guard 4b substrings  : mandated 'SECURITY DEFINER'  |  added 'SET search_path', 'STABLE'

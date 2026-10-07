@@ -44,13 +44,25 @@ distinct FAIL lines in the run  : 20
   OK   [delete_using_true,function_body_true,rls_disabled] required           <- `[9b] FAIL cross-account DELETE: account B's probe row did n
        [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expect
 UNCLASSIFIED                    : 0
+  DEFERRED [required_untested -> G4 `select_using_false] `[7a] FAIL user A reads 0 of its own rows`
+       named missing mutation: G4 `select_using_false
   EXEMPT [required, proven by M-inst] `[9a] FAIL instrument: ROW_COUNT and the counted rows disagr
        M-inst
   EXEMPT [required, proven by M-inst] `[9a] FAIL instrument: the unscoped UPDATE's ROW_COUNT and t
        M-inst (w6 variant)
+  DEFERRED [required_untested -> G5 `delete_policy_missing] `[9b] FAIL positive control before: …`
+       named missing mutation: G5 `delete_policy_missing
   EXEMPT [required, proven by M-inst] `[9b] FAIL instrument: the unscoped DELETE's ROW_COUNT and t
        M-inst (`isolation-minst-d6.sql`)
 SILENT REQUIRED ROWS            : 0
+DEFERRED required_untested      : 2
+   ~~ `[7a] FAIL user A reads 0 of its own rows`
+      named gap: G4 `select_using_false -- the mutation that would exercise it is not in
+      this manifest. Accepted as a KNOWN gap, not as a secondary signal.
+   ~~ `[9b] FAIL positive control before: …`
+      named gap: G5 `delete_policy_missing -- the mutation that would exercise it is not in
+      this manifest. Accepted as a KNOWN gap, not as a secondary signal.
+MALFORMED required_untested     : 0
 
 ==========================================================================
 T1  delete one classified row; expect exactly the lines it covered
@@ -96,6 +108,22 @@ SILENT REQUIRED ROWS = 1   (expected 1)
 T3 PASS
 
 ==========================================================================
-ALL THREE PASS. Both directions of the audit have been seen failing:
-removal (T1), injection (T2), and a row that never fires (T3).
-Its 0/0 on the baseline is now evidence, not a shrug.
+T4  blank the gap name on a required_untested row; expect MALFORMED 1
+==========================================================================
+`required_untested` exists so a positive control that never fired is recorded
+as a MISSING MUTATION instead of being quietly relabelled collateral. It is
+honoured only when the row names the gap, so this test blanks that name and
+leaves the class in place. The class without a named gap IS the silent
+downgrade that produced G4 and G5, so it must be rejected.
+before: class=required_untested  mutation=G4 `select_using_false`
+after : mutation cell blanked, class still required_untested (parsed OK)
+
+MALFORMED required_untested = 1   (expected 1)
+   MALFORMED [required_untested, names no gap] `[7a] FAIL user A reads 0 of its own rows`
+T4 PASS
+
+==========================================================================
+ALL FOUR PASS. Every direction the audit checks has been seen failing:
+removal (T1), injection (T2), a required row that never fires (T3), and
+a required_untested row stripped of its named gap (T4).
+Its zeros on the baseline are now evidence, not a shrug.
