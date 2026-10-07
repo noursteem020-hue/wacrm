@@ -54,6 +54,13 @@ JSONL = ROOT / "docs" / "evidence" / "b2r2" / "executor.jsonl"
 # then "(" is the common case: "... owned by account A (rows found: 0), so ...".
 TAIL = r"(\s*[\(\,:.]|$)"
 
+# A `required_untested` row must name the mutation that is missing, in the form
+# "G4 select_using_false". The row is accepted as a KNOWN gap only when it does:
+# without a name, the class is indistinguishable from a quiet downgrade to
+# allowed_collateral, which is the mistake that produced G4 and G5 in the first
+# place.
+GAP_RE = re.compile(r"^G\d+\s+\S")
+
 
 def normalise(text):
     """Lowercase; fold counts and the N/M placeholders to #; tidy punctuation."""
@@ -114,7 +121,7 @@ def rows_from_document(text):
         name, cls = cells[1], cells[2].lower()
         if "FAIL" not in name or name.lower() in ("mutation", "run", ""):
             continue
-        if cls not in ("required", "allowed_collateral"):
+        if cls not in ("required", "allowed_collateral", "required_untested"):
             continue                     # not a classification row
         rx = compile_row(name)
         if rx:
@@ -192,13 +199,36 @@ def main():
     # allow-list that hides regressions, so the exemption is derived: a row is
     # exempt only if its declared mutations are all M-inst.
     silent = []
+    deferred = []
+    malformed = []
     for rx, cell, cls, mut in rows:
-        if cls != "required":
+        if cls not in ("required", "required_untested"):
             continue
         fired = [ln for ln in stems if rx.search(normalise(ln))]
         if fired:
             continue
         declared = [x.strip(" `") for x in mut.replace("(", "").replace(")", "").split(",")]
+
+        # A third class, and the reason it exists: a line that has never fired is
+        # not thereby secondary. For a positive control it means the MANIFEST lacks
+        # a mutation that exercises it -- the policy being too narrow is a failure
+        # nobody tests for, and downgrading the line to allowed_collateral would
+        # hide that behind a reclassification. So `required_untested` is a real
+        # class, and it is only honoured when the row NAMES the missing mutation.
+        if cls == "required_untested":
+            gap = next((d for d in declared if GAP_RE.match(d)), None)
+            if gap is None:
+                malformed.append((cell, mut))
+                print(f"  MALFORMED [required_untested, names no gap] {cell[:62]}")
+                print(f"       mutation cell: {mut[:90]}")
+                print("       required_untested is only valid with a named gap such as")
+                print("       'G4 select_using_false'. Without one it is a silent downgrade.")
+                continue
+            deferred.append((cell, gap))
+            print(f"  DEFERRED [required_untested -> {gap}] {cell[:58]}")
+            print(f"       named missing mutation: {gap}")
+            continue
+
         if declared and all(d.startswith("M-inst") for d in declared):
             print(f"  EXEMPT [required, proven by M-inst] {cell[:60]}")
             print(f"       {mut[:100]}")
@@ -213,7 +243,16 @@ def main():
         print(f"      declared for: {mut[:90]}")
         print("      no mutation emitted this line. Either it is a dead assertion or")
         print("      an unmeasured gap; it may not stay `required` until one is shown.")
-    return 1 if (unmatched or silent) else 0
+    print(f"DEFERRED required_untested      : {len(deferred)}")
+    for cell, gap in deferred:
+        print(f"   ~~ {cell}")
+        print(f"      named gap: {gap} -- the mutation that would exercise it is not in")
+        print("      this manifest. Accepted as a KNOWN gap, not as a secondary signal.")
+    print(f"MALFORMED required_untested     : {len(malformed)}")
+    for cell, mut in malformed:
+        print(f"   !! {cell}")
+        print(f"      mutation cell: {mut[:90]}")
+    return 1 if (unmatched or silent or malformed) else 0
 
 
 if __name__ == "__main__":

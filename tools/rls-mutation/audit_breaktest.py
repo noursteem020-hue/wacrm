@@ -220,12 +220,59 @@ def main():
     t3_ok = n3 == 1 and "unscoped sweep" in out3
     print(f"T3 {'PASS' if t3_ok else 'FAIL -- the auditor cannot see an untriggered required row'}")
 
+    # ---------------------------------------------------------------- T4
     print()
     print("=" * 74)
-    if t1_ok and t2_ok and t3_ok:
-        print("ALL THREE PASS. Both directions of the audit have been seen failing:")
-        print("removal (T1), injection (T2), and a row that never fires (T3).")
-        print("Its 0/0 on the baseline is now evidence, not a shrug.")
+    print("T4  blank the gap name on a required_untested row; expect MALFORMED 1")
+    print("=" * 74)
+    print("`required_untested` exists so a positive control that never fired is recorded")
+    print("as a MISSING MUTATION instead of being quietly relabelled collateral. It is")
+    print("honoured only when the row names the gap, so this test blanks that name and")
+    print("leaves the class in place. The class without a named gap IS the silent")
+    print("downgrade that produced G4 and G5, so it must be rejected.")
+    doc4 = work / "ledger-lines-4.md"
+    lines4 = DOC.read_text(encoding="utf-8").splitlines(keepends=True)
+    anchor4 = next(i for i, l in enumerate(lines4)
+                   if l.startswith("|") and "required_untested" in l and "G4" in l)
+    orig4 = lines4[anchor4]
+    cells4 = [c.strip() for c in orig4.split("|")]
+    print("before: class=" + cells4[2] + "  mutation=" + cells4[3])
+    # Replace the gap name in place with an em dash, preserving the row's exact
+    # shape. Rebuilding the row from the cell list shifts every cell by one when the
+    # leading empty cell is dropped, which puts the class in the mutation column and
+    # makes the row vanish silently -- reported as MALFORMED 0 for the wrong reason.
+    blanked = orig4.replace(cells4[3], "—")
+    if blanked == orig4 or blanked.split("|")[2].strip() != "required_untested":
+        print("ABORT: could not blank the gap name while keeping the class")
+        return 2
+    lines4[anchor4] = blanked
+    doc4.write_text("".join(lines4), encoding="utf-8")
+    # Pre-check: the row must still parse as required_untested, or the verdict below
+    # would be about a row that does not exist.
+    probe4 = la.rows_from_document(doc4.read_text(encoding="utf-8"))
+    hit4 = [k for _rx, c, k, _m in probe4 if "reads 0 of its own rows" in c]
+    if not hit4 or hit4[0] != "required_untested":
+        print(f"ABORT: the edited row did not parse as required_untested: {hit4}")
+        return 2
+    print("after : mutation cell blanked, class still required_untested (parsed OK)")
+
+    _c4, _f4, out4 = run_audit(la, doc=doc4)
+    m4 = re.search(r"MALFORMED required_untested\s+:\s+(\d+)", out4)
+    n4 = int(m4.group(1)) if m4 else None
+    print(f"\nMALFORMED required_untested = {n4}   (expected 1)")
+    for ln in out4.splitlines():
+        if ln.startswith("  MALFORMED"):
+            print(f"   {ln.strip()[:118]}")
+    t4_ok = n4 == 1 and "reads 0 of its own rows" in out4
+    print(f"T4 {'PASS' if t4_ok else 'FAIL -- a nameless required_untested was accepted as a gap'}")
+
+    print()
+    print("=" * 74)
+    if t1_ok and t2_ok and t3_ok and t4_ok:
+        print("ALL FOUR PASS. Every direction the audit checks has been seen failing:")
+        print("removal (T1), injection (T2), a required row that never fires (T3), and")
+        print("a required_untested row stripped of its named gap (T4).")
+        print("Its zeros on the baseline are now evidence, not a shrug.")
         return 0
     print("AT LEAST ONE FAILED. The baseline's zeros prove nothing until the")
     print("auditor has been seen failing in that direction too.")

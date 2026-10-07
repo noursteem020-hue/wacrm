@@ -562,13 +562,16 @@ def auditor_breaktests():
         print(f"FAIL {brk.name} is missing, so the auditor is unproven")
         return False
     r = subprocess.run([sys.executable, str(brk)], capture_output=True, text=True)
-    tail = [l for l in r.stdout.splitlines() if l.startswith(("T1 ", "T2 ", "T3 "))]
+    tail = [l for l in r.stdout.splitlines()
+            if l.startswith(("T1 ", "T2 ", "T3 ", "T4 "))]
     for l in tail:
         print("  " + l)
-    verdict = [l for l in r.stdout.splitlines() if "ALL THREE PASS" in l]
-    if r.returncode != 0 or not verdict:
+    # Do not match the summary sentence: it is edited every time a test is added, and
+    # a stale literal here reported the gate broken while every test passed. The
+    # child's exit code already decides; the sentence is printed for a human.
+    if r.returncode != 0:
         print("  --- break test output tail ---")
-        for l in (r.stdout + r.stderr).splitlines()[-12:]:
+        for l in (r.stdout + r.stderr).splitlines()[-14:]:
             print("  " + l[:150])
         return False
     return True
