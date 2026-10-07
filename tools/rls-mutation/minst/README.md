@@ -126,19 +126,25 @@ docker exec -i supabase_db_wacrm psql -U postgres -d postgres -v ON_ERROR_STOP=1
   < tools/rls-mutation/minst/isolation-minst-w6.sql ; echo "EXIT=$?"
 ```
 
-## Not achieved
+## Load-bearing: w4, w6, and d6
 
-**`d6_instrument` has no FAIL line anywhere in the probe.** It is computed
-(`iso.section9b.d6_instrument`, probe lines 1029–1044) and echoed at line 1073
-(`[9b] census after … instrument= …`), but no assertion in the file compares
-`d9b_d6_instrument` to `'AGREE'`. Grep for it returns exactly three hits — the
-`set_config`, the `current_setting` in the `\gset` SELECT, and the `\echo`. There
-is no third. So `d6_instrument` cannot make a run go red; it is reporting-only, and
-it is **not** a second load-bearing instrument. That is a real coverage gap in the
-probe and it is recorded here rather than papered over.
+All three census instruments are assertions, not echoes. Each has a FAIL line in the
+probe that fires when the counter is broken, independently of any policy:
 
-Breaking the `d6` census filter was therefore not attempted as an acceptance case:
-it would have produced an `instrument= DISAGREE …` echo and still exited 0, which
-is exactly the "printed result is not an assertion" defect the skill warns about.
-The load-bearing instruments in this file are `w4_instrument` and `w6_instrument`,
-and both were seen green at baseline and red under an instrument-only mutation.
+| instrument | assertion | probe line |
+|---|---|---|
+| `w4_instrument` | `[9a] FAIL instrument: ROW_COUNT and the counted rows disagree` | 832 |
+| `w6_instrument` | `[9a] FAIL instrument: the unscoped UPDATE's ROW_COUNT and the ownership census disagree` | 802 |
+| `d6_instrument` | `[9b] FAIL instrument: the unscoped DELETE's ROW_COUNT and the ownership census disagree` | 1116 |
+
+`d6_instrument` was reporting-only until `f251f9a`, which added the `[9b]` arm. That
+commit added this arm and the note below in the same change, so for one commit the
+probe and this file disagreed: the note said `d6` could not make a run red, and by
+then it could. The note was the stale side. It is kept here because "grep says three
+hits" is exactly the kind of check that passes while the thing it checks has moved —
+the fix was to re-grep at the commit that changed the file, not to trust the count.
+
+`grep -c 'FAIL instrument' src/lib/tenant/isolation.sql` returns 3 at HEAD, and
+`git grep -n 'd6_instrument' -- src/lib/tenant/isolation.sql` shows the
+`set_config` at 1029, the `current_setting` at 1058, the `\echo` at 1073, and the
+comparison at 1115.
