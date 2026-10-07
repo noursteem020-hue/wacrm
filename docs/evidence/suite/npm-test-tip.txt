@@ -1,3 +1,9 @@
+# cmd:     npm ci && npm test
+# commit:  867ced993a27f174a4f16ea49da589efe711b1fe
+# node:    v24.21.0
+# vitest:  4.1.11
+# worktree: detached, outside the repo
+
 
 > wacrm@0.8.0 test
 > vitest run
