@@ -64,6 +64,36 @@ def claims(body):
     return out
 
 
+# A fenced line that looks like evidence but that the pattern above will not read.
+# Reported rather than ignored: the gap between "how many claim-shaped lines are
+# here" and "how many were checked" is the coverage limit of this tool, and it has to
+# be visible instead of inferred from a passing exit code.
+CLAIM_SHAPED = re.compile(r"^\s*(?P<cmd>`[^`]+`|\$\s+\S[^\n]*|[a-z][\w.\-/]*\s+\S[^\n]*?)"
+                          r"\s+->\s+(?P<result>\S.*?)\s*$")
+
+
+def unanalysed(body, checked_lines):
+    """-> [(line_no, text)] claim-shaped lines this tool did not verify.
+
+    A line that reads `x -> y` in prose, or inside a fence, but did not match the
+    claim pattern is exactly where a wrong number would hide: the reader sees
+    evidence, the checker saw nothing. MEASURED case: a body's claim count was
+    reported by hand as 23 while the tool verified 22, and nothing said which line
+    made up the difference.
+    """
+    out, inside = [], False
+    for i, line in enumerate(body.splitlines(), 1):
+        if line.startswith("```"):
+            inside = not inside
+            continue
+        if i in checked_lines or not CLAIM_SHAPED.match(line):
+            continue
+        m = CLAIM_SHAPED.match(line)
+        if m:
+            out.append((i, m.group("cmd").strip()[:110]))
+    return out
+
+
 def run(cmd):
     """Run the command text and return its collapsed stdout.
 
@@ -188,6 +218,17 @@ def main():
     if tool_broken:
         print("TOOL FAILURES: the checker itself could not run a claim. That is not a")
         print("  verdict on the claim, and this run certifies nothing.")
+
+    # Coverage: a claim-shaped line this tool did not verify. Reported even on a clean
+    # run, because a green exit code says nothing about text the checker cannot see.
+    unchecked = unanalysed(body, {ln for ln, _, _ in found})
+    if unchecked:
+        print(f"CLAIM-SHAPED BUT NOT VERIFIED : {len(unchecked)}")
+        print("  These lines read like evidence but did not match the checked form, so")
+        print("  this run says NOTHING about them. Read them yourself:")
+        for line_no, text in unchecked:
+            print(f"   ?? line {line_no}: {text}")
+        print()
     if bad:
         print(f"MISMATCHES : {len(bad)}")
         for line_no, cmd, why in bad:
