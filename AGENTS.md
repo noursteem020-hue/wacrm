@@ -201,3 +201,20 @@ a description, and the difference is that nobody re-runs it.
 A row in a table that says a check was broken, with no committed artefact showing it
 break, is a fabricated claim even when I believed it. "Loosely worded" is not a
 defence for that row; the row is deleted.
+
+## A commit message describes the change; it never asserts a measurement
+
+MEASURED cost: `35017d9`'s message claimed the suite was re-run at `867ced9` and the
+artefact replaced. Its only file change was one line in `minst/README.md` —
+`git show 35017d9 --name-status --format=''` lists nothing under `docs/evidence/`.
+The message was the only place the claim existed, and nothing checks commit messages,
+so it passed a review round that verified the descriptions thoroughly.
+
+A commit message says what changed and why. Every measurement goes in
+`docs/evidence/`, committed, where a command can re-derive it. If a measurement is not
+in a committed file, no message and no report may say it happened.
+
+And the same rule as reports, one level down: **a message may not restate a number as
+if it were fresh.** Stale numbers in a message outlive the commit by years and there
+is no tool that will ever re-derive them.
+
