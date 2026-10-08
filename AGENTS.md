@@ -85,7 +85,7 @@ including nothing — "no defects found" is itself the result about the review.
 
 ## 8. Prefer a check over a careful reader
 
-`tools/verify-pr-body` reads every `cmd -> result` line out of a published PR
+`tools/verify-pr-body.py` reads every `cmd -> result` line out of a published PR
 description, re-runs the command, and fails if the result differs. Run it after
 editing any description that contains evidence.
 
