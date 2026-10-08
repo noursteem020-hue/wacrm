@@ -103,6 +103,14 @@ A check nobody has seen fail is an untested claim. Prove it fails, for the right
 reason, before trusting a pass. A gate that aborts for the wrong reason proves
 nothing — check which specific evidence earned the failure.
 
+**The sentence beside a number is a claim too.** `X because Y` is two claims, and
+`tools/verify-pr-body.py` checks only the first: it re-derives numbers, never the
+reasoning written around them. A table can be numerically correct and wrong in
+every cell's explanation. MEASURED here: a row reading `BRE: \r is CR` sat beside
+`grep -c '\r' -> 2`, the gate reported the number verified, and the row was
+false — in a GNU BRE `\r` is the letter `r`. So `Y` needs a command of its own,
+or the sentence says **`cause not measured`** and stops there.
+
 ## 10. Compare the bytes git holds, not the bytes your checkout holds
 
 Use `git rev-parse <commit>:<path>` and `git hash-object <path>`. The reason is
