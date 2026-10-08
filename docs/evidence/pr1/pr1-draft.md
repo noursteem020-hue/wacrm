@@ -190,7 +190,7 @@ failures: base's test asserts ASCII digits and separators, and the ambient local
 renders neither. At head-sha, in the worktree:
 
 ```
-cd ../wt-pr1 && npx --no-install vitest run src/lib/currency.test.ts 2>&1 | grep -c 'AssertionError' -> 4
+cd ../wt-pr1 && git show 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/currency.test.ts > src/lib/currency.test.ts && npx --no-install vitest run src/lib/currency.test.ts 2>&1 | grep -c 'AssertionError'
 ```
 
 Restored with `git -C ../wt-pr1 checkout -- .`; the worktree is clean afterwards.
