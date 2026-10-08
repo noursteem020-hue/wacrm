@@ -62,7 +62,7 @@ git merge-base 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b4
 Seventeen files change.
 
 ```
-git diff --name-only 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d | wc -l -> 17
+git diff --name-only 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d | wc -l | sed 's/^/total_files=/' -> total_files=17
 ```
 
 ```
@@ -151,7 +151,7 @@ This PR does not touch `src/lib/currency.ts`, so there is no product behaviour
 here to cover:
 
 ```
-git diff --name-only 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d -- src/lib/currency.ts | wc -l -> 0
+git diff --name-only 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d -- src/lib/currency.ts | wc -l | sed 's/^/currency_files=/' -> currency_files=0
 git rev-parse 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/currency.ts -> 471bd3f964cc6a4b00f5a4a8f814c1ec02656771
 git rev-parse 9e1773c709dc01cc209612b403ed0c90d741798d:src/lib/currency.ts -> 471bd3f964cc6a4b00f5a4a8f814c1ec02656771
 ```
