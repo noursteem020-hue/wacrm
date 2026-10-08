@@ -94,7 +94,7 @@ that fails unless the number is right does — the same reason the mutation camp
 exists at all.
 
 ```
-python tools/verify-pr-body --pr 3
+python tools/verify-pr-body.py --pr 3
 ```
 
 ## 9. Break every gate you build
@@ -103,18 +103,30 @@ A check nobody has seen fail is an untested claim. Prove it fails, for the right
 reason, before trusting a pass. A gate that aborts for the wrong reason proves
 nothing — check which specific evidence earned the failure.
 
-## 10. Compare bytes git holds, not bytes a pipe reassembled
+## 10. Compare the bytes git holds, not the bytes your checkout holds
 
-Use `git rev-parse <commit>:<path>` and `git hash-object <path>`. Never
-`git show <commit>:<path> | md5sum`: this repository's files carry CRLF and the pipe
-converts them, producing a difference that is an artefact of the measurement.
+Use `git rev-parse <commit>:<path>` and `git hash-object <path>`. The reason is
+not a pipe: MEASURED at `44e3a6d`, `git show <commit>:<path> | md5sum` is
+byte-identical to the blob on every evidence file in this repository. The
+conversion happens on **checkout**, not in the pipe. `core.autocrlf=true`, so the
+committed blob holds 0 CR and the working tree holds 14
+(`docs/evidence/b2/executor.jsonl`, `1b72deae…` vs `bb3bf376…`). Hashing the
+working file with `md5sum` measures the checkout; `git hash-object` normalises it
+back to the blob oid and is the only statement about bytes that survives being
+run on another machine.
 
 Fuller notes, with the measured examples: `tools/rls-mutation/campaign_paths.py` and
-`tools/rls-mutation/ledger-lines.md`.
-Rules 1-10 above are the whole set. The sections after them add only what
-those ten could not say yet; each says so where it sits.
+`tools/rls-mutation/ledger-lines.md`. The table at the end of this file names the
+cost for every rule here.
+Rules 1-10 above are the whole set. Each section that follows one of them opens
+by naming the rule it exists because that rule could not cover the case — read
+those openings as part of the rule, not as commentary.
 
 ## Keep the output of every run you will ever need to explain
+
+*Rule 1 cannot catch this one: a command that ran and whose output nobody kept is
+a real measurement with no artefact behind it. Rules 1-6 govern claims that are
+written down; nothing governs the run that produced nothing.*
 
 A single unexplained test failure in this repository cost four hypothesis rounds and
 a reviewer cycle, because the run's output was piped into `grep` and thrown away. The
@@ -129,9 +141,11 @@ cause is still unknown. The output would have answered it in a minute.
 - **Every claim of `0` needs a positive control.** A filter that returns `0` is only
   evidence if the same command returns `> 0` on a case known to contain the thing.
   MEASURED, twice in this repository:
-  `grep -ci 'icu|hostile'` returns `0` on a file that really does contain two ICU
-  failure lines — in a BRE the `|` is a literal, so the command cannot answer "yes"
-  at all. `grep -ciE 'icu|hostile'` on the same file returns `2`. And
+  `grep -ci 'icu|hostile'` returns `0` on a file that really does contain both ICU
+  and hostile-test lines — in a BRE the `|` is a literal, so the command cannot
+  answer "yes" at all. On `src/i18n/icu-safety.test.ts`, which does contain both,
+  at `44e3a6d`: `grep -ciE 'icu|hostile'` returns `8` where `grep -ci 'icu|hostile'`
+  returns `0`. And
   `tsc --noEmit` with no project can return `0` while checking nothing. If a command
   cannot say "yes", its "no" carries no information. Write the positive control in
   the same commit as the claim.
@@ -140,6 +154,10 @@ cause is still unknown. The output would have answered it in a minute.
 
 
 ## Reports to the user are claims too
+
+*Rules 1 and 8 cannot reach this one: they guard PR descriptions and committed
+files, and a sentence typed into a chat window is in neither place. Nothing
+re-runs what I say here.*
 
 The PR descriptions are guarded by `tools/verify-pr-body.py`. Nothing guards what I
 say *in the conversation*, and that is where the last real error came from.
@@ -152,7 +170,7 @@ that back it:
 ```
 measured at 867ced9   docs/evidence/suite/npm-test-tip.txt   (committed, replaces acc352d's copy)
 fixed in 61242f9      tools/rls-mutation/minst/README.md
-re-derived 22/22      tools/verify-pr-body.py --pr 3
+re-derived            python tools/verify-pr-body.py --pr 3   (the tool prints the count; do not hand-type it)
 ```
 
 If the artefact is not committed and named, the report says "not committed" — it does
@@ -164,6 +182,10 @@ break, is a fabricated claim even when I believed it. "Loosely worded" is not a
 defence for that row; the row is deleted.
 
 ## A commit message describes the change; it never asserts a measurement
+
+*Rule 1 cannot catch this one: `tools/verify-pr-body.py` reads a PR body, and a
+commit message is in neither that file nor `docs/evidence/`. Rule 1 asks for a
+command; nothing asked where the command's output was kept.*
 
 MEASURED cost: `35017d9`'s message claimed the suite was re-run at `867ced9` and the
 artefact replaced. Its only file change was one line in `minst/README.md` —
@@ -181,6 +203,11 @@ is no tool that will ever re-derive them.
 
 
 ## Three lessons from the review rounds that had no rule
+
+*These three are what rules 1-10 kept missing: each is a real error that a rule
+already covered on paper and that no check caught. They stay outside the
+numbered list because none of them has a gate — read them as the open edge of the
+rule set, not as part of it.*
 
 **An artefact must name the commit it came from.** `docs/evidence/suite/npm-test-tip.txt`
 was cited for two different commits in one session: the file carried no SHA, so nothing
@@ -212,6 +239,10 @@ happens, it does not belong in prose — the command that produces it does.
 
 ## Two shell traps in this environment, both already paid for
 
+*Rules 4 and 6 cannot cover this one: both are about git state you can query.
+This is about how a subprocess fails to launch at all, and a launcher failure
+wearing the costume of six command failures.*
+
 **`bash -c` from a Python subprocess fails here.** `subprocess.run(["bash","-c", ...])`
 returns rc=1 with `<3>WSL (679450 - Relay) ERROR: CreatePro…` and no command output at
 all — six commands run that way all reported the same unrelated WSL error. It is not a
@@ -227,12 +258,18 @@ gh, node and npm. This has cost three worktrees' worth of confusion.
 
 ## The failure journey, so the rules are not abstract
 
+*Rules 1 and 2 cannot cover this one: both assume a claim that points at a command
+you can run again. This section points at nothing — it is the index. Its rows are
+summaries of arguments made elsewhere in this file and in
+`tools/rls-mutation/ledger-lines.md`; a row is never new evidence, and if a row
+and its section ever disagree, the section wins.*
+
 Every rule above was bought with a real error, recorded in
 `tools/rls-mutation/ledger-lines.md` with the commands that settle each one:
 
 | rule | what it cost |
 |---|---|
-| no evidence without a command | `:'u9a_w2_rows'` asserted as a syntax error; it is in no probe — `git grep u9a_w2_rows HEAD -- src/lib/tenant/isolation.sql` exits 1 with no output, and the one file that mentions it is this ledger's |
+| no evidence without a command | (WITHDRAWN — see `tools/rls-mutation/ledger-lines.md`) the `:'u9a_w2_rows'` syntax-error story; `\gset u9a_` at `src/lib/tenant/isolation.sql:707` and `\gset r9a_` at `:768` coexist by design. The real cost of rule 1 is recorded in that ledger, not here |
 | stay bound to the commit | suite counts measured at `868728c`, relabelled `1bfa392` |
 | negation needs a direct check | "read at three sites and never set" — two sites, and set in the same commit |
 | predict before executing | 64 commits where 24 were expected, and no stop to explain it |
@@ -240,11 +277,11 @@ Every rule above was bought with a real error, recorded in
 | a statement about work state | "absent from every run" — present in the committed B2 evidence |
 | the author does not review | five real errors among claims the automated check had already passed |
 | break every gate | a matcher made lenient until it printed the expected answer, twice |
-| bytes git holds | `git show … \| md5sum` turning CRLF into a false byte difference |
+| bytes git holds | `md5sum` on a checked-out file reading differently from the blob — `core.autocrlf=true` converts on checkout, so 14 CR in the worktree and 0 in the blob. Not the pipe: `git show … \| md5sum` measured identical |
 | artefact names its commit | `npm-test-tip.txt` cited for two commits, one of them a lie |
 | pin both ends | a range claim broken by a branch move |
 | no self-invalidating number | eight commits spent correcting one stale count |
-| a 0 needs a positive control | `grep -ci 'icu\|hostile'` returning 0 on a file that contained two hits |
+| a 0 needs a positive control | `grep -ci 'icu\|hostile'` returning 0 on a file that returns 8 under `grep -ciE` |
 | comparison claims are measured | "it silently drops `paths`" — four commands disproved it |
 | reports are claims | "measured at 867ced9" while the committed file was from `acc352d` |
 | messages are not evidence | `35017d9`'s message asserting a run its diff does not contain |

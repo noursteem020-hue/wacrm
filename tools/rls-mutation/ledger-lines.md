@@ -169,12 +169,26 @@ because the same CR-vs-LF trap has now bitten this campaign three times.
 ```
 git rev-parse <commit>:<path>     # committed bytes   -> 9529a37d...
 git hash-object <path>            # working bytes     -> 9529a37d...   equal
-git show <commit>:<path> | md5sum # WRONG: differs
+git show <commit>:<path> | md5sum # measured 44e3a6d: ALSO equal
+md5sum <path>                     # working bytes     -> differs from both
 ```
 
-`executor.jsonl` is byte-identical between `bd7ed58` and `HEAD`, but its md5 changes
-when `git show` pipes it, because the pipe turns this repository's 14 CR bytes into
-LF. The blob hash is the only statement about bytes here that survives a reviewer
+`executor.jsonl` is byte-identical between `bd7ed58` and `HEAD`. CORRECTION to
+what this section previously claimed: the difference is not produced by a pipe.
+MEASURED at `44e3a6d` on `docs/evidence/b2/executor.jsonl`, `git show` piped to
+`md5sum` returns the blob's md5 exactly (`1b72deae…`, 14 LF, 0 CR), as does
+`git cat-file blob`. The working copy returns `bb3bf376…` with 14 CR. The
+conversion is `core.autocrlf=true` acting on **checkout**; a pipe never sees it.
+`git hash-object` normalises the working file back to the blob oid
+(`21e4a738…`), which is why it is the right command and `md5sum` is not.
+
+Count CR with `tr -dc '
+' | wc -c`, never `grep -c $'
+'`: when that pattern
+collapses to empty, `grep -c ''` returns the LINE COUNT. That trap reported 14
+CR in a blob that contains none, during the audit that found this correction.
+
+The blob hash is the only statement about bytes here that survives a reviewer
 running it on another machine. The rule is in `tools/rls-mutation/campaign_paths.py`
 beside `EXPECTED_PROBE_BLOB`, which is itself a `git rev-parse` value for the same
 reason.

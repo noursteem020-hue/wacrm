@@ -19,13 +19,14 @@ sentence that needs a human, and hiding that is how one slips through.
 Read-only. It runs the command it finds, so only run it on a description you trust
 enough to execute, and read the commands before running this.
 
-    python tools/verify-pr-body --pr 3
-    python tools/verify-pr-body --pr 3 --repo noursteem020-hue/wacrm
+    python tools/verify-pr-body.py --pr 3
+    python tools/verify-pr-body.py --pr 3 --repo noursteem020-hue/wacrm
 
 Exit 0 all claims re-derived. Exit 1 at least one mismatch. Exit 2 usage or fetch
 failure.
 """
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -107,12 +108,19 @@ def run(cmd):
     `bash -c`, never `bash -lc`: the login flag sources a profile that fails in this
     environment, and every command came back as "execvpe(/bin/bash) failed" -- a
     total failure that still reads as a set of MISMATCHes.
+
+    The working directory is this file's repo root, discovered from `__file__`, not
+    a hardcoded absolute path. MEASURED: the tool shipped with
+    `cwd="C:/Users/FX-tec/Desktop/wacrm-work"`, so a reviewer running it from any
+    other clone, worktree or machine re-ran every claim against one developer's
+    checkout and reported the result as a MISMATCH against their own.
     """
     bash = shutil.which("bash") or shutil.which("sh")
     if not bash:
         raise RuntimeError("no bash or sh on PATH; cannot run the claims")
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     p = subprocess.run([bash, "-c", cmd], capture_output=True, text=True,
-                       cwd="C:/Users/FX-tec/Desktop/wacrm-work")
+                       cwd=repo_root)
     out = " ".join((p.stdout or p.stderr).split())
     # A WSL or shell-level failure is the TOOL breaking, not the subject failing.
     # Reporting it as a MISMATCH would blame the claim for the checker's defect.
