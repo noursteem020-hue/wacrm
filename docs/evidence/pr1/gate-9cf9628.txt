@@ -1,0 +1,120 @@
+PR #1 body: 29 machine-checkable claim(s) in fenced blocks
+  source: docs/evidence/pr1/pr1-draft.md
+
+  OK   L  31  cd ../wt-pr1 && git rev-parse HEAD
+         claimed   -> 9e1773c709dc01cc209612b403ed0c90d741798d
+         re-derived-> 9e1773c709dc01cc209612b403ed0c90d741798d
+
+  OK   L  35  cd ../wt-pr1 && test -x node_modules/.bin/vitest; echo "rc=$?"
+         claimed   -> rc=0
+         re-derived-> rc=0
+
+  OK   L  47  gh pr view 1 --repo noursteem020-hue/wacrm --json headRefOid --jq .headRefOid
+         claimed   -> 9e1773c709dc01cc209612b403ed0c90d741798d
+         re-derived-> 9e1773c709dc01cc209612b403ed0c90d741798d
+
+  OK   L  48  gh pr view 1 --repo noursteem020-hue/wacrm --json baseRefOid --jq .baseRefOid
+         claimed   -> 45e80ad9e23b91f5c02ab9f935edbae67810e59d
+         re-derived-> 45e80ad9e23b91f5c02ab9f935edbae67810e59d
+
+  OK   L  57  git merge-base 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d
+         claimed   -> 45e80ad9e23b91f5c02ab9f935edbae67810e59d
+         re-derived-> 45e80ad9e23b91f5c02ab9f935edbae67810e59d
+
+  OK   L  65  git diff --name-only 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d | wc -l
+         claimed   -> 17
+         re-derived-> 17
+
+  OK   L  69  git diff --stat 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d | tail -1
+         claimed   -> 17 files changed, 2167 insertions(+), 151 deletions(-)
+         re-derived-> 17 files changed, 2167 insertions(+), 151 deletions(-)
+
+  OK   L  75  git cat-file -e 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/middleware.ts && echo present
+         claimed   -> present
+         re-derived-> present
+
+  OK   L  76  git cat-file -e 9e1773c709dc01cc209612b403ed0c90d741798d:src/middleware.ts; echo "rc=$?"
+         claimed   -> rc=128
+         re-derived-> rc=128
+
+  OK   L  86  git diff --name-status 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d -- 'src/**/*.test.ts'
+         claimed   -> M src/lib/currency.test.ts A src/lib/tenant/proxy-header.test.ts A src/lib/tenant/resolve.test.ts A src/lib/tenant/slug.test.ts
+         re-derived-> M src/lib/currency.test.ts A src/lib/tenant/proxy-header.test.ts A src/lib/tenant/resolve.test.ts A src/lib/tenant/slug.
+
+  OK   L  92  cd ../wt-pr1 && npx --no-install vitest run src/lib/tenant/resolve.test.ts src/lib/tenant/slug.test.ts src/lib/tenant/proxy-header.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo
+         claimed   -> Test Files 3 passed (3) Tests 27 passed (27)
+         re-derived-> Test Files 3 passed (3) Tests 27 passed (27)
+
+  OK   L  96  cd ../wt-pr1 && npx --no-install vitest run src/lib/currency.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo
+         claimed   -> Test Files 1 passed (1) Tests 10 passed (10)
+         re-derived-> Test Files 1 passed (1) Tests 10 passed (10)
+
+  OK   L 108  cd ../wt-pr1 && sed -i 's/parts.length - 2/parts.length - 1/' src/lib/tenant/resolve.ts && npx --no-install vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'AssertionError' | head -1 | paste -sd' ' -; echo
+         claimed   -> AssertionError: expected 'com' to be 'acme' // Object.is equality
+         re-derived-> AssertionError: expected 'com' to be 'acme' // Object.is equality
+
+  OK   L 114  cd ../wt-pr1 && sed -i 's/parts.length - 2/parts.length - 1/' src/lib/tenant/resolve.ts && npx --no-install vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E '^ +Tests ' | paste -sd' ' -; echo
+         claimed   -> Tests 4 failed | 6 passed (10)
+         re-derived-> Tests 4 failed | 6 passed (10)
+
+  OK   L 120  cd ../wt-pr1 && git checkout -- src/lib/tenant/resolve.ts && npx --no-install vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo
+         claimed   -> Test Files 1 passed (1) Tests 10 passed (10)
+         re-derived-> Test Files 1 passed (1) Tests 10 passed (10)
+
+  OK   L 139  git cat-file -e 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/tenant/resolve.ts; echo "rc=$?"
+         claimed   -> rc=128
+         re-derived-> rc=128
+
+  OK   L 140  git cat-file -e 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/tenant/slug.ts; echo "rc=$?"
+         claimed   -> rc=128
+         re-derived-> rc=128
+
+  OK   L 141  git cat-file -e 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/tenant/header.ts; echo "rc=$?"
+         claimed   -> rc=128
+         re-derived-> rc=128
+
+  OK   L 142  git cat-file -e 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/proxy.ts; echo "rc=$?"
+         claimed   -> rc=128
+         re-derived-> rc=128
+
+  OK   L 154  git diff --name-only 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc209612b403ed0c90d741798d -- src/lib/currency.ts | wc -l
+         claimed   -> 0
+         re-derived-> 0
+
+  OK   L 155  git rev-parse 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/currency.ts
+         claimed   -> 471bd3f964cc6a4b00f5a4a8f814c1ec02656771
+         re-derived-> 471bd3f964cc6a4b00f5a4a8f814c1ec02656771
+
+  OK   L 156  git rev-parse 9e1773c709dc01cc209612b403ed0c90d741798d:src/lib/currency.ts
+         claimed   -> 471bd3f964cc6a4b00f5a4a8f814c1ec02656771
+         re-derived-> 471bd3f964cc6a4b00f5a4a8f814c1ec02656771
+
+  OK   L 174  LC_ALL=de-DE.UTF-8 node -e "console.log(Intl.NumberFormat().resolvedOptions().locale)"
+         claimed   -> ar-SA
+         re-derived-> ar-SA
+
+  OK   L 175  LC_ALL=en-US.UTF-8 node -e "console.log(Intl.NumberFormat().resolvedOptions().locale)"
+         claimed   -> ar-SA
+         re-derived-> ar-SA
+
+  OK   L 176  LANG=de-DE.UTF-8 node -e "console.log(Intl.NumberFormat().resolvedOptions().locale)"
+         claimed   -> ar-SA
+         re-derived-> ar-SA
+
+  OK   L 177  node -e "console.log(Intl.NumberFormat().resolvedOptions().locale)"
+         claimed   -> ar-SA
+         re-derived-> ar-SA
+
+  OK   L 184  node -e "console.log(new Intl.NumberFormat('de-DE').format(1234.5))"
+         claimed   -> 1.234,5
+         re-derived-> 1.234,5
+
+  OK   L 185  node -e "console.log(new Intl.NumberFormat('ar-SA').format(1234.5))"
+         claimed   -> ١٬٢٣٤٫٥
+         re-derived-> ١٬٢٣٤٫٥
+
+  OK   L 200  cd ../wt-pr1 && test -z "$(git status --porcelain)" && echo clean || echo dirty
+         claimed   -> clean
+         re-derived-> clean
+
+RE-DERIVED 29/29
