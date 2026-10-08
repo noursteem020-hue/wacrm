@@ -173,17 +173,26 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pr", required=True, type=int)
     ap.add_argument("--repo", default="noursteem020-hue/wacrm")
+    ap.add_argument("--file", default=None,
+                    help="re-derive claims in this local file instead of a "
+                         "published PR body. For a DRAFT that has not been "
+                         "pushed, --pr alone cannot see it.")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the commands without running them")
     args = ap.parse_args()
 
-    body = fetch_body(args.pr, args.repo)
-    if body is None:
-        return 2
+    if args.file:
+        body = open(args.file, encoding="utf-8").read()
+        source = args.file
+    else:
+        body = fetch_body(args.pr, args.repo)
+        if body is None:
+            return 2
+        source = f"gh pr view {args.pr} --json body   (the PUBLISHED body)"
 
     found = claims(body)
     print(f"PR #{args.pr} body: {len(found)} machine-checkable claim(s) in fenced blocks")
-    print(f"  source: gh pr view {args.pr} --json body   (the PUBLISHED body)")
+    print(f"  source: {source}")
     print()
 
     if not found:

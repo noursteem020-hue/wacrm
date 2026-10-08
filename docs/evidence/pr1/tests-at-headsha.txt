@@ -1,0 +1,11 @@
+# cmd:     npx vitest run src/lib/tenant/{resolve,slug,proxy-header}.test.ts  and  src/lib/currency.test.ts
+# commit:  9e1773c709dc01cc209612b403ed0c90d741798d  (PR #1 head, checked out as a worktree)
+# node:    v24.21.0
+# locale:  ar-SA
+# note:    measured in a worktree at head-sha, NOT in the docs branch working tree.
+#
+ Test Files  3 passed (3)
+      Tests  27 passed (27)
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+# exit:    0 (both runs passed)
