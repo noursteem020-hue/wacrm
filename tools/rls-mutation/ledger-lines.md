@@ -182,11 +182,61 @@ conversion is `core.autocrlf=true` acting on **checkout**; a pipe never sees it.
 `git hash-object` normalises the working file back to the blob oid
 (`21e4a738…`), which is why it is the right command and `md5sum` is not.
 
-Count CR with `tr -dc '
-' | wc -c`, never `grep -c $'
-'`: when that pattern
-collapses to empty, `grep -c ''` returns the LINE COUNT. That trap reported 14
-CR in a blob that contains none, during the audit that found this correction.
+Count CR with `tr -dc '\r' | wc -c`, which counts bytes and cannot be
+made to count anything else. `grep -c` counts LINES and, spelled `$'\r'`, it
+does not even receive a carriage return — see the next section. Both failures
+were measured here, and the first explanation I wrote for them was wrong.
+
+```
+printf 'one\ntwo\nthr%se\nfour\nfive\n' "$(printf \r)" > five.txt
+tr -dc '\r' < five.txt | wc -c      # real CR bytes
+grep -c $'\r' five.txt              # what the shell actually runs
+```
+
+```
+1
+5
+```
+
+One real CR, in a five-line file, and `grep -c $'\r'` answered **5** — the line
+count, because bash delivers the pattern as an empty string and an empty pattern
+matches every line. It reported the same 5 for a file with no CR at all, which is
+how a filter that cannot answer "yes" produced a confident "yes".
+
+## Why the same command reads 0 in one place and 5 in another
+
+Both numbers were correct, in different contexts, and I reported them as
+contradictory. MEASURED across the spellings:
+
+| spelling | file with 1 CR in 5 lines | file with 0 CR | reads as |
+|---|---|---|---|
+| `grep -c $'\r'` | 5 | 1 | line count; pattern arrives empty |
+| `grep -c "$CR"` (CR in a variable) | 1 | 0 | the true CR count |
+| `grep -cF '\r'` (literal backslash + r, fixed string) | 0 | 0 | a search for two characters |
+| `grep -c '\r'` (BRE: `\r` is CR again) | 2 | 0 | not a literal search at all |
+
+`grep -c '\r'` looks like the literal spelling and is not: in a BRE `\r` is CR
+again, so it reads 2 on a file containing no `\r` text at all. Only `-F` makes it a
+search for two characters, and only `-F` returns 0 on both files above.
+
+The row that matters is the middle one. A carriage return held in a shell
+variable and passed as an argument needs no `$'...'` expansion, so it arrives
+intact and grep counts the lines that contain one. That is the only spelling
+here that can report `0` honestly.
+
+The `0` I quoted came from a `grep -c $'\r'` written inside a double-quoted
+`bash -c` string, where the OUTER shell consumed the `$'\r'` and the inner
+bash searched for the literal characters `$'\r'`. Nothing matched, so it
+printed 0. Deeper nesting is the general hazard on this host: `verify-pr-body.py`
+runs every claim through `bash -c`, so any `$'...'` inside a claim degrades into
+a search for literal text.
+
+The practical rule, and the one to check against: **a count of CR bytes is only
+trustworthy from `tr -dc '\r' | wc -c`, and a negative from `grep -c` is not a
+negative at all.** `docs/evidence/b2/executor.jsonl` measures 14 CR bytes in the
+working tree and 0 in the blob by the first command; the second returns 14 in
+both, which is its 14 lines.
+
 
 The blob hash is the only statement about bytes here that survives a reviewer
 running it on another machine. The rule is in `tools/rls-mutation/campaign_paths.py`
