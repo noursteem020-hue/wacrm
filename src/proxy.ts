@@ -1,8 +1,19 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { resolveTenantFromHost } from '@/lib/tenant/resolve'
+import { withTenantHeader } from '@/lib/tenant/header'
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+export async function proxy(request: NextRequest) {
+  // The client-sent `x-tenant-slug` is attacker-controlled input and is never
+  // read as authority: it is overwritten with the slug resolved from the
+  // hostname, or deleted when the hostname maps to no tenant.
+  const requestHeaders = new Headers(request.headers)
+  withTenantHeader(
+    requestHeaders,
+    resolveTenantFromHost(request.headers.get('host'))
+  )
+
+  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,7 +25,18 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({ request })
+          // Re-snapshot AFTER the cookie writes above. `requestHeaders` was taken
+          // at the top of the function, before them, so passing it here would
+          // forward the pre-rotation refresh cookie and reintroduce issue #288.
+          // `request.cookies.set` writes through to the live `request.headers`,
+          // so re-reading it here carries the rotated cookie; the tenant header is
+          // re-applied because the top-of-function copy is stale in the same way.
+          const refreshed = new Headers(request.headers)
+          withTenantHeader(
+            refreshed,
+            resolveTenantFromHost(request.headers.get('host'))
+          )
+          supabaseResponse = NextResponse.next({ request: { headers: refreshed } })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -71,7 +93,7 @@ export async function middleware(request: NextRequest) {
 
   // Protected pages - redirect to login if not authenticated
   // Every top-level route under src/app/(dashboard)/ belongs here —
-  // middleware.test.ts reads that directory and fails on a missing one.
+  // proxy.test.ts reads that directory and fails on a missing one.
   const protectedPaths = ['/dashboard', '/inbox', '/contacts', '/pipelines', '/broadcasts', '/automations', '/flows', '/agents', '/notifications', '/settings']
   if (!user && protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))) {
     const url = request.nextUrl.clone()
