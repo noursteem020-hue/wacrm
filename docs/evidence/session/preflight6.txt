@@ -1,3 +1,10 @@
+# cmd:     python tools/rls-mutation/preflight6.py
+# commit:  0f8b66e6ff0a118b92a229f69b331f9db83c84ea
+# node:    v24.21.0
+# python:  Python 3.14.7
+# branch:  docs/rls-evidence-boundaries
+# scope:   T1..T4 only; does not touch the committed database state
+#
 ==============================================================================
 PREFLIGHT v6  
 ==============================================================================
@@ -92,3 +99,4 @@ committed state unchanged after the whole run: bfae0aea057682e5403f70c94f0b5f61
 committed is_account_member in a read-only txn: 026fa63f24c5f54584758c4f5d314408/true/search_path=public/98 rc=0
 ==============================================================================
 PREFLIGHT PASSED
+# exit:    0

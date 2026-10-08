@@ -1,3 +1,10 @@
+# cmd:     python tools/verify-pr-body.py --pr 3
+# commit:  0f8b66e6ff0a118b92a229f69b331f9db83c84ea
+# node:    v24.21.0
+# python:  Python 3.14.7
+# branch:  docs/rls-evidence-boundaries
+# rc:      see the RE-DERIVED line below; exit code recorded by the caller
+#
 PR #3 body: 30 machine-checkable claim(s) in fenced blocks
   source: gh pr view 3 --json body   (the PUBLISHED body)
 
@@ -122,3 +129,4 @@ PR #3 body: 30 machine-checkable claim(s) in fenced blocks
          re-derived-> # commit: 867ced993a27f174a4f16ea49da589efe711b1fe
 
 RE-DERIVED 30/30
+# exit:    0
