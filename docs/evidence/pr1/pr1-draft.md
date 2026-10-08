@@ -74,11 +74,11 @@ git diff --name-status 45e80ad9e23b91f5c02ab9f935edbae67810e59d 9e1773c709dc01cc
 Three files are added and one is rewritten. Run at head-sha in the worktree:
 
 ```
-git worktree add -f ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d && cd ../wt-pr1 && [ -d node_modules ] || npm ci; cd ../wt-pr1 && npx vitest run src/lib/tenant/resolve.test.ts src/lib/tenant/slug.test.ts src/lib/tenant/proxy-header.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo -> Test Files 3 passed (3) Tests 27 passed (27)
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/tenant/resolve.test.ts src/lib/tenant/slug.test.ts src/lib/tenant/proxy-header.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo -> Test Files 3 passed (3) Tests 27 passed (27)
 ```
 
 ```
-git worktree add -f ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d && cd ../wt-pr1 && [ -d node_modules ] || npm ci; cd ../wt-pr1 && npx vitest run src/lib/currency.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo -> Test Files 1 passed (1) Tests 10 passed (10)
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/currency.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo -> Test Files 1 passed (1) Tests 10 passed (10)
 ```
 
 ## The tests can say no: a mutation, run and restored
@@ -90,19 +90,19 @@ hostname; the mutation returns the last label instead, so `crm.acme.com` resolve
 to `com` instead of `acme`:
 
 ```
-git worktree add -f ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d && cd ../wt-pr1 && [ -d node_modules ] || npm ci; cd ../wt-pr1 && sed -i 's/parts.length - 2/parts.length - 1/' src/lib/tenant/resolve.ts && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'AssertionError' | head -1 | paste -sd' ' -; echo -> AssertionError: expected 'com' to be 'acme' // Object.is equality
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'AssertionError' | head -1 | paste -sd' ' -; echo -> AssertionError: expected 'com' to be 'acme' // Object.is equality
 ```
 
 The failure count for the same mutation:
 
 ```
-git worktree add -f ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d && cd ../wt-pr1 && [ -d node_modules ] || npm ci; cd ../wt-pr1 && sed -i 's/parts.length - 2/parts.length - 1/' src/lib/tenant/resolve.ts && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E '^ +Tests ' | paste -sd' ' -; echo -> Tests 4 failed | 6 passed (10)
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E '^ +Tests ' | paste -sd' ' -; echo -> Tests 4 failed | 6 passed (10)
 ```
 
 The unmutated control on the same tree:
 
 ```
-git worktree add -f ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d && cd ../wt-pr1 && [ -d node_modules ] || npm ci; cd ../wt-pr1 && git checkout -- src/lib/tenant/resolve.ts && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo -> Test Files 1 passed (1) Tests 10 passed (10)
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'Test Files|Tests ' | paste -sd' ' -; echo -> Test Files 1 passed (1) Tests 10 passed (10)
 ```
 
 Restored, and the worktree is clean afterwards:
@@ -176,7 +176,7 @@ failures: base's test asserts ASCII digits and separators, and the ambient local
 renders neither. At head-sha, in the worktree:
 
 ```
-git worktree add -f ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d && cd ../wt-pr1 && [ -d node_modules ] || npm ci; cd ../wt-pr1 && git show 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/currency.test.ts > src/lib/currency.test.ts && npx vitest run src/lib/currency.test.ts 2>&1 | grep -c 'AssertionError' -> 4
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/currency.test.ts 2>&1 | grep -c 'AssertionError' -> 4
 ```
 
 Restored with `git -C ../wt-pr1 checkout -- .`; the worktree is clean afterwards.

@@ -103,6 +103,15 @@ A check nobody has seen fail is an untested claim. Prove it fails, for the right
 reason, before trusting a pass. A gate that aborts for the wrong reason proves
 nothing — check which specific evidence earned the failure.
 
+**A claim that changes the tree runs in a throwaway worktree.** MEASURED here: a
+test run claimed as a measurement of `9e1773c` had actually run in the working
+tree of the docs branch — the same error as relabelling a suite count onto
+another commit. `git worktree add ../wt-<name> <sha>`, measure there, and
+`git worktree remove --force` afterwards. The claim must create the worktree
+itself, or a reviewer running it after the cleanup gets "no such directory",
+which reads as a failure and is not one. And a claim that reports a test count
+says which tree produced it, in the same line.
+
 **The sentence beside a number is a claim too.** `X because Y` is two claims, and
 `tools/verify-pr-body.py` checks only the first: it re-derives numbers, never the
 reasoning written around them. A table can be numerically correct and wrong in
