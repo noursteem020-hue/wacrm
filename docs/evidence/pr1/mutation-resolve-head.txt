@@ -1,16 +1,16 @@
-# cmd:     mutation: parts[parts.length - 2] -> parts[parts.length - 1] in src/lib/tenant/resolve.ts:43
-#          npx vitest run src/lib/tenant/resolve.test.ts
-# commit:  9e1773c709dc01cc209612b403ed0c90d741798d  (PR #1 head, checked out as a worktree)
+# cmd:     cd ../wt-pr1 && sed -i 's/parts.length - 2/parts.length - 1/' src/lib/tenant/resolve.ts
+#          npx --no-install vitest run src/lib/tenant/resolve.test.ts
+# commit:  9e1773c709dc01cc209612b403ed0c90d741798d  (PR #1 head, worktree ../wt-pr1)
 # node:    v24.21.0
 # locale:  ar-SA
 # restores: git checkout -- src/lib/tenant/resolve.ts
-# purpose: prove the added test can say NO. Without this, 27 passed is a check that cannot fail.
+# purpose: the added test must be able to fail. This is the mutation that makes it fail.
 #
 
  RUN  v4.1.11 C:/Users/FX-tec/Desktop/wt-pr1
 
- ❯ src/lib/tenant/resolve.test.ts (10 tests | 4 failed) 22ms
-     × extracts the subdomain from crm.acme.com 13ms
+ ❯ src/lib/tenant/resolve.test.ts (10 tests | 4 failed) 15ms
+     × extracts the subdomain from crm.acme.com 7ms
      × strips a port 1ms
      × lowercases the host before resolving 1ms
      × strips a leading www. 1ms
@@ -84,7 +84,7 @@ Received: "com"
 
  Test Files  1 failed (1)
       Tests  4 failed | 6 passed (10)
-   Start at  04:31:00
-   Duration  622ms (transform 78ms, setup 0ms, import 103ms, tests 22ms, environment 0ms)
+   Start at  06:23:44
+   Duration  466ms (transform 69ms, setup 0ms, import 96ms, tests 15ms, environment 0ms)
 
 # exit:    1

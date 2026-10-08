@@ -1,9 +1,10 @@
-# cmd:     npx vitest run src/lib/tenant/resolve.test.ts   (unmutated control)
-# commit:  9e1773c709dc01cc209612b403ed0c90d741798d  (PR #1 head, checked out as a worktree)
+# cmd:     cd ../wt-pr1 && git checkout -- src/lib/tenant/resolve.ts
+#          npx --no-install vitest run src/lib/tenant/resolve.test.ts
+# commit:  9e1773c709dc01cc209612b403ed0c90d741798d  (PR #1 head, worktree ../wt-pr1)
 # node:    v24.21.0
 # locale:  ar-SA
-# purpose: the same test on the same tree with no mutation. It must PASS, or the
-#          mutation result proves nothing.
+# purpose: the control. Same test, same tree, no mutation. It must PASS, or the
+#          mutation result in mutation-resolve-head.txt proves nothing.
 #
 
  RUN  v4.1.11 C:/Users/FX-tec/Desktop/wt-pr1
@@ -11,7 +12,7 @@
 
  Test Files  1 passed (1)
       Tests  10 passed (10)
-   Start at  04:31:16
-   Duration  509ms (transform 82ms, setup 0ms, import 114ms, tests 14ms, environment 0ms)
+   Start at  06:23:56
+   Duration  447ms (transform 61ms, setup 0ms, import 86ms, tests 15ms, environment 0ms)
 
 # exit:    0
