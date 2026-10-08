@@ -90,13 +90,13 @@ hostname; the mutation returns the last label instead, so `crm.acme.com` resolve
 to `com` instead of `acme`:
 
 ```
-git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'AssertionError' | head -1 | paste -sd' ' -; echo -> AssertionError: expected 'com' to be 'acme' // Object.is equality
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && sed -i 's/parts.length - 2/parts.length - 1/' src/lib/tenant/resolve.ts && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E 'AssertionError' | head -1 | paste -sd' ' -; echo -> AssertionError: expected 'com' to be 'acme' // Object.is equality
 ```
 
 The failure count for the same mutation:
 
 ```
-git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E '^ +Tests ' | paste -sd' ' -; echo -> Tests 4 failed | 6 passed (10)
+git worktree remove --force ../wt-pr1 >/dev/null 2>&1; git worktree add ../wt-pr1 9e1773c709dc01cc209612b403ed0c90d741798d >/dev/null 2>&1; cd ../wt-pr1; [ -d node_modules ] || npm ci >/dev/null 2>&1; cd ../wt-pr1 && sed -i 's/parts.length - 2/parts.length - 1/' src/lib/tenant/resolve.ts && npx vitest run src/lib/tenant/resolve.test.ts 2>&1 | grep -E '^ +Tests ' | paste -sd' ' -; echo -> Tests 4 failed | 6 passed (10)
 ```
 
 The unmutated control on the same tree:
