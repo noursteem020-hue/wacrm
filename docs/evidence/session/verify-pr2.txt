@@ -1,0 +1,16 @@
+# cmd:     python tools/verify-pr-body.py --pr 2
+# commit:  0f8b66e6ff0a118b92a229f69b331f9db83c84ea
+# node:    v24.21.0
+# python:  Python 3.14.7
+# branch:  docs/rls-evidence-boundaries
+# rc:      see the RE-DERIVED line below; exit code recorded by the caller
+#
+PR #2 body: 1 machine-checkable claim(s) in fenced blocks
+  source: gh pr view 2 --json body   (the PUBLISHED body)
+
+  OK   L  13  git rev-list --count 9e1773c..e0d31ab
+         claimed   -> 36
+         re-derived-> 36
+
+RE-DERIVED 1/1
+# exit:    0

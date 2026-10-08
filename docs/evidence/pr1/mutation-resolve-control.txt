@@ -1,0 +1,15 @@
+# cmd:     cd ../wt-pr1 && git checkout -- src/lib/tenant/resolve.ts
+#          npx --no-install vitest run src/lib/tenant/resolve.test.ts
+# commit:  9e1773c709dc01cc209612b403ed0c90d741798d  (PR #1 head, worktree ../wt-pr1)
+# node:    v24.21.0
+# locale:  ar-SA
+# purpose: the control. Same test, same tree, no mutation. It must PASS, or the
+#          mutation result in mutation-resolve-head.txt proves nothing.
+#
+
+
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+
+# exit:    0

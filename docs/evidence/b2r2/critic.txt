@@ -1,0 +1,136 @@
+====================================================================================================
+CRITIC - did each red run go red for the EXPECTED reason?
+====================================================================================================
+
+INPUTS (read-only): executor.jsonl, mutations.yaml
+A non-zero probe exit proves nothing by itself: a SQL typo and a real
+cross-tenant leak both exit non-zero. The ONLY evidence is the ledger.
+
+----------------------------------------------------------------------------------------------------
+1. EVERY NON-ZERO PROBE EXIT, CLASSIFIED WITH CITATION
+----------------------------------------------------------------------------------------------------
+
+  [rls_disabled]  probe_exit=3
+      expected line (prefix): '[7a] FAIL user A sees '
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+      also printed   : 13 further ledger line(s); the classification rests on the declared one, not on the count.
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [update_using_true]  probe_exit=3
+      expected line (prefix): '[9a] FAIL leak: an unscoped UPDATE touched '
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [9a] FAIL leak: an unscoped UPDATE touched 3 row(s) not owned by the caller (counted as postgres, before rollback). The UPDATE policy was open enough to write another account's rows
+      also printed   : 5 further ledger line(s); the classification rests on the declared one, not on the count.
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [update_with_check_true]  probe_exit=3
+      expected line (prefix): '[9a] FAIL leak: the unscoped UPDATE moved'
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=2, 2 row(s) written), counted as postgres before rollback. A statement with no WHERE needs no read privilege, so contacts_update's own USING scoped the scan and its WITH CHECK was the only gate on the cross-account post-image
+      also printed   : 3 further ledger line(s); the classification rests on the declared one, not on the count.
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [select_using_true]  probe_exit=3
+      expected line (prefix): '[7a] FAIL user A sees '
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+      also printed   : 3 further ledger line(s); the classification rests on the declared one, not on the count.
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [insert_with_check_true]  probe_exit=3
+      expected line (exact): '[8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it'
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy did not stop it
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [select_plus_update_true]  probe_exit=3
+      expected line (prefix): '[7a] FAIL user A sees '
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+      also printed   : 11 further ledger line(s); the classification rests on the declared one, not on the count.
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [update_policy_missing]  probe_exit=3
+      expected line (prefix): "[9a] FAIL positive control before: an in-place edit of user A's OWN row did not succeed ("
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [9a] FAIL positive control before: an in-place edit of user A's OWN row did not succeed (ALLOWED rows=0). Every negative below would pass vacuously, so this section is not yet measuring isolation
+      also printed   : 1 further ledger line(s); the classification rests on the declared one, not on the count.
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [delete_using_true]  probe_exit=3
+      expected line (prefix): "[9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: "
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  [function_body_true]  probe_exit=3
+      expected line (prefix): '[7a] FAIL user A sees '
+      CLASSIFICATION  : RIGHT REASON
+      CITATION        : the declared line is present verbatim in the raw ledger.
+        probe printed -> [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+      also printed   : 13 further ledger line(s); the classification rests on the declared one, not on the count.
+      manifest says   : should_be_red=true (probe SHOULD be red here)
+
+  red runs examined : 9
+  RIGHT REASON      : 9
+  FALSE RED         : 0
+
+----------------------------------------------------------------------------------------------------
+2. ENTRIES THE MANIFEST PREDICTS GREEN THAT WENT RED  (is the prediction wrong?)
+----------------------------------------------------------------------------------------------------
+  none. Every entry with predicted_red=false exited 0 as predicted:
+      clean_baseline           exit=0  (no ledger line printed, no error text)
+
+  count: 0
+
+----------------------------------------------------------------------------------------------------
+3. predicted_red == 'unknown'  (observed result, classified in the manifest's terms)
+----------------------------------------------------------------------------------------------------
+
+  [delete_using_true]  probe_exit=3   ledger lines printed: 1
+      declared line : "[9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: "
+      CLASSIFICATION  : THE PROBE CAUGHT IT.
+        citation -> [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+      Note: this entry was NOT MEASURED before this run; the result is observed, and it is a positive observation of detection.
+      ledger actually printed:
+        [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expected 1). Read AS POSTGRES on purpose -- counting as anon reads 0 whether the row survived or was destroyed, because anon cannot see it
+
+----------------------------------------------------------------------------------------------------
+4. GAPS LIST - every row where observed != expected
+----------------------------------------------------------------------------------------------------
+  none
+
+  total gaps: 0
+
+----------------------------------------------------------------------------------------------------
+5. WHAT THE CLEAN GREEN RUNS DO AND DO NOT EARN
+----------------------------------------------------------------------------------------------------
+  [clean_baseline] exit 0.
+      Earns: the probe is green on the unmodified database, so every
+      red run in this campaign is attributable to its mutation rather than
+      to a probe that is broken at baseline.
+      Does NOT earn: any claim that the database is correct. A green run
+      proves the probe did not observe a hole, nothing more.
+
+----------------------------------------------------------------------------------------------------
+6. CAMPAIGN INTEGRITY AS SEEN FROM THE RAW RECORDS
+----------------------------------------------------------------------------------------------------
+  final fingerprint : bfae0aea057682e5403f70c94f0b5f61
+  baseline          : bfae0aea057682e5403f70c94f0b5f61
+  equal             : True
+  final md5(prosrc) : 026fa63f24c5f54584758c4f5d314408
+  equal to baseline : True
+  dependent policies: 98
+  hard_stop         : None
+  final clean_baseline exit : 0
+
+====================================================================================================

@@ -1,0 +1,253 @@
+# cmd:     audit of AGENTS.md against itself, branch docs/rls-evidence-boundaries
+# commit:  44e3a6d561d7294e739a79a13ecb5fcb4a4da1aa
+# branch:  docs/rls-evidence-boundaries
+# node:    v24.21.0
+# scope:   6 defects, each with the command that settles it and the file it is in.
+# format:  every claim below is `cmd -> result` so tools/verify-pr-body.py can
+#          re-derive it. Rule 10: bytes compared with git cat-file blob.
+#
+# STATE: parts 1-6 record the PRE-FIX tree at this commit. Five of the six have
+# been fixed on this branch since, so re-running those commands now returns the
+# post-fix output and the difference is the fix, not a regression. Part 7 records
+# the post-fix measurement. Do not read a stale part-1 result as a live defect.
+#
+# This is a standalone artefact, not a PR body: tools/verify-pr-body.py reads
+# `gh pr view <n> --json body` and does not read this file. It is written in the
+# same `cmd -> result` form so a reviewer can run any command here by hand.
+
+## 1. Rule 8's printed command cannot run. The file is verify-pr-body.py
+
+AGENTS.md line 97 and tools/verify-pr-body.py line 22 both print
+`python tools/verify-pr-body --pr 3`. There is no such file.
+
+```
+python tools/verify-pr-body --pr 3 >/dev/null 2>&1; echo rc=$?
+```
+
+```
+rc=2
+```
+
+```
+python tools/verify-pr-body.py --pr 3 >/dev/null 2>&1; echo rc=$?
+```
+
+```
+rc=0
+```
+
+## 2. Rule 10's stated mechanism is false. The pipe does not convert CR
+
+Rule 10 and the ledger both say `git show <commit>:<path> | md5sum` differs from
+the committed bytes because the pipe converts CRLF. Measured at HEAD, on four
+files including the two the ledger names: the pipe is byte-identical to the blob.
+
+```
+for f in docs/evidence/b2/executor.jsonl docs/evidence/b2r2/executor.jsonl docs/evidence/suite/npm-test-tip.txt docs/evidence/suite/tsc-tip.txt; do blob=$(git cat-file blob HEAD:$f | md5sum | cut -d' ' -f1); show=$(git show HEAD:$f | md5sum | cut -d' ' -f1); wtree=$(md5sum "$f" | cut -d' ' -f1); blobcr=$(git cat-file blob HEAD:$f | tr -dc '\r' | wc -c); wcr=$(tr -dc '\r' < "$f" | wc -c); printf '%-46s blobCR=%-3s wtCR=%-3s pipe==blob:%s  wtree==blob:%s\n' "$f" "$blobcr" "$wcr" "$([ "$blob" = "$show" ] && echo YES || echo NO)" "$([ "$blob" = "$wtree" ] && echo YES || echo NO)"; done
+```
+
+```
+docs/evidence/b2/executor.jsonl                blobCR=0   wtCR=14  pipe==blob:YES  wtree==blob:NO
+docs/evidence/b2r2/executor.jsonl              blobCR=0   wtCR=14  pipe==blob:YES  wtree==blob:NO
+docs/evidence/suite/npm-test-tip.txt           blobCR=0   wtCR=0   pipe==blob:YES  wtree==blob:YES
+docs/evidence/suite/tsc-tip.txt                blobCR=0   wtCR=0   pipe==blob:YES  wtree==blob:YES
+```
+
+The conversion is real and it happens on **checkout**, not in a pipe:
+`core.autocrlf=true`, so the blob holds 0 CR and the working tree holds 14. A
+`git hash-object` of the working file returns the blob oid anyway, because
+autocrlf normalises on the way in. So the rule's advice is right and its reason
+is wrong:
+
+```
+git config --get core.autocrlf
+md5sum docs/evidence/b2/executor.jsonl
+git hash-object docs/evidence/b2/executor.jsonl
+git rev-parse HEAD:docs/evidence/b2/executor.jsonl
+```
+
+```
+true
+bb3bf3764ad63284e5d3a2ec0cee53ee   (working bytes)
+21e4a7383feb002d7859ba3c35bd93dcd7b9f666   (git hash-object, working bytes)
+21e4a7383feb002d7859ba3c35bd93dcd7b9f666   (git rev-parse, committed bytes)
+```
+
+### 2b. A measurement trap that produced a false 14 in this very session
+
+`grep -c $'\r'` was reported as "14 CR in the blob" in an earlier run of this
+audit. The pattern is unreliable: when it collapses to empty, `grep -c ''`
+returns the LINE COUNT. Proven with a 4-line control file:
+
+```
+printf 'a\nb\nc\nd\n' > control.txt; grep -c '' control.txt; grep -c $'\r' control.txt
+```
+
+```
+4
+0
+```
+
+The reliable spelling is `tr -dc '\r' | wc -c`, used above.
+
+## 3. Line 155 hand-types a count the tool no longer prints
+
+```
+grep -n 're-derived 22/22' AGENTS.md
+python tools/verify-pr-body.py --pr 3 2>/dev/null | tail -1
+```
+
+```
+155:re-derived 22/22      tools/verify-pr-body.py --pr 3
+RE-DERIVED 30/30
+```
+
+This is the file's own lesson ("never write a number that invalidates itself")
+committed as prose. It is stale now, and it was 22 because the body grew, not
+because the tool changed.
+
+## 4. Line 114 promises each later section declares itself. Zero do
+
+```
+sed -n '117,250p' AGENTS.md | grep -ciE 'could not say|the ten|not yet|no rule had'
+```
+
+```
+0
+```
+
+Six sections follow rule 10 (lines 117, 142, 166, 183, 213, 228) and not one
+says what rule could not cover it. The promise sits in the rules themselves and
+is falsified by the file's own text.
+
+## 5. Ledger row 1 states a claim the ledger marks WITHDRAWN
+
+AGENTS.md's table presents `u9a_w2_rows` as the cost of rule 1, with a command
+that exits 1. tools/rls-mutation/ledger-lines.md line 191 marks that exact claim
+**WITHDRAWN**: the identifier exists by design, two prefixes coexist. Both files
+are cited as the authority.
+
+```
+grep -n 'WITHDRAWN' tools/rls-mutation/ledger-lines.md | head -2
+git grep -l 'u9a_w2_rows' HEAD
+```
+
+```
+191:1. **WITHDRAWN.** The claim was that the probe "died with `syntax error at or near
+199:2. **WITHDRAWN.** The claim was "`iso.d_probe_a` was read at three sites and never
+HEAD:AGENTS.md
+HEAD:tools/rls-mutation/ledger-lines.md
+```
+
+`git grep` finds the identifier in exactly two files, and both are the ledgers
+citing each other. It appears in no probe, which is the half of the row that
+holds, but the row asserts the syntax-error story as fact while the ledger
+retracts it.
+
+## 6. The gate hardcodes one machine's path
+
+```
+grep -n 'cwd=' tools/verify-pr-body.py
+```
+
+```
+115:                       cwd="C:/Users/FX-tec/Desktop/wacrm-work")
+```
+
+Every claim the gate re-runs executes in that directory regardless of where the
+tool is invoked or which clone it is in. A reviewer on another machine gets
+failing claims, not an error about the path.
+
+## Gates re-run at this commit, for the record
+
+```
+for n in 3 4 2; do python tools/verify-pr-body.py --pr $n >/dev/null 2>&1; echo "pr=$n rc=$?"; done
+```
+
+```
+pr=3 rc=0
+pr=4 rc=0
+pr=2 rc=0
+```
+
+```
+python tools/rls-mutation/preflight6.py 2>&1 | tail -2
+```
+
+```
+committed state unchanged after the whole run: bfae0aea057682e5403f70c94f0b5f61
+PREFLIGHT PASSED
+```
+
+```
+python tools/verify-pr-body.py --pr 1 2>&1 | tail -4
+```
+
+```
+FAIL no `cmd -> result` line found. Either the description carries no
+  evidence in that form, or it uses a form this tool cannot read.
+  Either way it is not verified, and that is not the same as verified.
+```
+
+PR #1's body carries no claim in the machine-checkable form, so the gate exits 1
+on it. That is the tool working, not a defect: an unverifiable description is
+reported as unverifiable rather than passed.
+
+## 7. Post-fix measurement, at the same commit with the fixes applied
+
+Each defect's fix, re-checked on the edited tree. This is the part that stays
+true as the branch moves.
+
+```
+grep -c 'python tools/verify-pr-body --pr' AGENTS.md
+grep -c 'python tools/verify-pr-body.py --pr 3' AGENTS.md
+grep -c 're-derived 22/22' AGENTS.md
+sed -n '/^## Keep the output/,$p' AGENTS.md | grep -cE '^\*[A-Z]'
+grep -c 'WITHDRAWN — see' AGENTS.md
+grep -c 'Never$' AGENTS.md
+```
+
+```
+0
+2
+0
+6
+1
+0
+```
+
+The `C:/Users/FX-tec/Desktop/wacrm-work` string still appears exactly once in
+`tools/verify-pr-body.py`, at line 114, inside the docstring that records the
+defect. That is the only occurrence and it is documentation, not code:
+
+```
+grep -n 'C:/Users/FX-tec' tools/verify-pr-body.py
+```
+
+```
+114:    `cwd="C:/Users/FX-tec/Desktop/wacrm-work"`, so a reviewer running it from any
+```
+
+The fix itself, proven by running the gate from a different working directory —
+the case the hardcoded path made impossible:
+
+```
+cd C:/Users/FX-tec/Desktop && python C:/Users/FX-tec/Desktop/wacrm-work/tools/verify-pr-body.py --pr 3 2>&1 | tail -1
+```
+
+```
+RE-DERIVED 30/30
+```
+
+Syntax check on the edited tool, and the suite re-run after the edit:
+
+```
+python -c "import ast;ast.parse(open('tools/verify-pr-body.py',encoding='utf-8').read());print('syntax ok')"
+python tools/rls-mutation/preflight6.py 2>&1 | tail -2
+```
+
+```
+syntax ok
+committed state unchanged after the whole run: bfae0aea057682e5403f70c94f0b5f61
+PREFLIGHT PASSED
+```

@@ -1,0 +1,132 @@
+# cmd:     python tools/verify-pr-body.py --pr 3
+# commit:  0f8b66e6ff0a118b92a229f69b331f9db83c84ea
+# node:    v24.21.0
+# python:  Python 3.14.7
+# branch:  docs/rls-evidence-boundaries
+# rc:      see the RE-DERIVED line below; exit code recorded by the caller
+#
+PR #3 body: 30 machine-checkable claim(s) in fenced blocks
+  source: gh pr view 3 --json body   (the PUBLISHED body)
+
+  OK   L  19  git rev-parse feat/tenant-isolation
+         claimed   -> 1bfa3929ae6e2d98b64f75f82c8b5edc99ff8faa
+         re-derived-> 1bfa3929ae6e2d98b64f75f82c8b5edc99ff8faa
+
+  OK   L  20  gh pr view 4 --repo noursteem020-hue/wacrm --json commits --jq '.commits|length'
+         claimed   -> 6
+         re-derived-> 6
+
+  OK   L  21  gh pr view 1 --repo noursteem020-hue/wacrm --json commits --jq '.commits|length'
+         claimed   -> 35
+         re-derived-> 35
+
+  OK   L  22  git cat-file -e main:src/lib/tenant/isolation.sql > /dev/null 2>&1; echo rc=$?
+         claimed   -> rc=128
+         re-derived-> rc=128
+
+  OK   L  38  git diff bd7ed58 HEAD -- src/ | wc -c
+         claimed   -> 0
+         re-derived-> 0
+
+  OK   L  39  git rev-parse bd7ed58:src/lib/tenant/isolation.sql
+         claimed   -> f50a7d80a9e756e1a0c7aa3739bb935c9c80f463
+         re-derived-> f50a7d80a9e756e1a0c7aa3739bb935c9c80f463
+
+  OK   L  40  git rev-parse HEAD:src/lib/tenant/isolation.sql
+         claimed   -> f50a7d80a9e756e1a0c7aa3739bb935c9c80f463
+         re-derived-> f50a7d80a9e756e1a0c7aa3739bb935c9c80f463
+
+  OK   L  41  cut -d'"' -f2 <(grep EXPECTED_PROBE_BLOB tools/rls-mutation/campaign_paths.py)
+         claimed   -> f50a7d80a9e756e1a0c7aa3739bb935c9c80f463
+         re-derived-> f50a7d80a9e756e1a0c7aa3739bb935c9c80f463
+
+  OK   L  50  grep -E '^  (entries compared|MATCH|MISMATCH|residue)' docs/evidence/b2r2/verifier-run.log
+         claimed   -> entries compared 10 / MATCH 10 / MISMATCH 0
+         re-derived-> entries compared : 10 MATCH : 10 MISMATCH : 0 residue : fingerprint EQUAL TO baseline
+
+  OK   L  51  grep -E 'FALSE RED' docs/evidence/b2r2/critic-run.log
+         claimed   -> FALSE RED : 0
+         re-derived-> FALSE RED : 0
+
+  OK   L  52  grep -oE 'final md5\(prosrc\) +: [0-9a-f]{32}' docs/evidence/b2r2/verifier-run.log
+         claimed   -> 026fa63f24c5f54584758c4f5d314408
+         re-derived-> final md5(prosrc) : 026fa63f24c5f54584758c4f5d314408
+
+  OK   L  53  grep -oE 'recapture identical to original capture : .*' docs/evidence/b2r2/verifier-run.log
+         claimed   -> True (758 chars, 20 CR)
+         re-derived-> recapture identical to original capture : True (758 chars, 20 CR)
+
+  OK   L  54  grep -E '^(UNCLASSIFIED|SILENT REQUIRED|DEFERRED required_untested|MALFORMED)' docs/evidence/b2r2/ledger-audit.txt
+         claimed   -> UNCLASSIFIED 0 / SILENT REQUIRED 0 / DEFERRED 2 / MALFORMED 0
+         re-derived-> UNCLASSIFIED : 0 SILENT REQUIRED ROWS : 0 DEFERRED required_untested : 2 MALFORMED required_untested : 0
+
+  OK   L  55  grep -cE '^T[1-4] PASS' docs/evidence/b2r2/ledger-audit-breaktest.txt
+         claimed   -> 4
+         re-derived-> 4
+
+  OK   L  66  grep -cE '^3 +update_with_check_true.*MATCH$' docs/evidence/b2r2/verifier-run.log
+         claimed   -> 1
+         re-derived-> 1
+
+  OK   L  67  grep -cE '^8 +delete_using_true.*MATCH$' docs/evidence/b2r2/verifier-run.log
+         claimed   -> 1
+         re-derived-> 1
+
+  OK   L  82  grep -oE 'lines outside per-mutation ledger_line : [0-9]+' docs/evidence/b2r2/verifier-run.log
+         claimed   -> 44
+         re-derived-> lines outside per-mutation ledger_line : 44
+
+  OK   L  83  grep -oE 'UNCLASSIFIED +: [0-9]+' docs/evidence/b2r2/ledger-audit.txt
+         claimed   -> UNCLASSIFIED                    : 0
+         re-derived-> UNCLASSIFIED : 0
+
+  OK   L 124  grep -E '^ *Test Files' docs/evidence/suite/npm-test-1bfa392.txt
+         claimed   -> Test Files 95 passed (95)
+         re-derived-> Test Files 95 passed (95)
+
+  OK   L 125  grep -E '^ *Tests ' docs/evidence/suite/npm-test-1bfa392.txt
+         claimed   -> 1110 passed | 7 skipped (1117)
+         re-derived-> Tests 1110 passed | 7 skipped (1117)
+
+  OK   L 126  grep -E '^ *Tests ' docs/evidence/suite/npm-test-tip.txt
+         claimed   -> 1110 passed | 7 skipped (1117)
+         re-derived-> Tests 1110 passed | 7 skipped (1117)
+
+  OK   L 127  npx tsc --noEmit -p tsconfig.json; echo rc=$?
+         claimed   -> rc=0
+         re-derived-> rc=0
+
+  OK   L 128  git diff --stat 867ced9 ded710d -- src/ | wc -c
+         claimed   -> 0
+         re-derived-> 0
+
+  OK   L 138  git diff --stat 20fa752 867ced9 -- src/ | wc -c
+         claimed   -> 0
+         re-derived-> 0
+
+  OK   L 139  git rev-list --count 20fa752..867ced9
+         claimed   -> 3
+         re-derived-> 3
+
+  OK   L 148  git diff --stat 20fa752 867ced9 -- package.json vitest.config.ts tsconfig.json | wc -c
+         claimed   -> 0
+         re-derived-> 0
+
+  OK   L 149  git diff --stat 20fa752 867ced9 -- src/i18n | wc -c
+         claimed   -> 0
+         re-derived-> 0
+
+  OK   L 156  head -2 docs/evidence/suite/npm-test-tip.txt
+         claimed   -> # cmd: npm ci && npm test
+         re-derived-> # cmd: npm ci && npm test # commit: 867ced993a27f174a4f16ea49da589efe711b1fe
+
+  OK   L 158  grep -m1 'cmd:' docs/evidence/suite/tsc-tip.txt
+         claimed   -> # cmd:     npx tsc --noEmit -p tsconfig.json
+         re-derived-> # cmd: npx tsc --noEmit -p tsconfig.json
+
+  OK   L 159  grep -m1 'commit:' docs/evidence/suite/tsc-tip.txt
+         claimed   -> # commit:  867ced993a27f174a4f16ea49da589efe711b1fe
+         re-derived-> # commit: 867ced993a27f174a4f16ea49da589efe711b1fe
+
+RE-DERIVED 30/30
+# exit:    0

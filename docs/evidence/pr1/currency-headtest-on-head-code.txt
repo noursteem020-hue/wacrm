@@ -1,0 +1,17 @@
+# cmd:     npx vitest run src/lib/currency.test.ts
+# commit:  9e1773c709dc01cc209612b403ed0c90d741798d  (both test and code are head's)
+# node:    v24.21.0
+# locale:  ar-SA
+# note:    NOT a break-test. currency.ts is byte-identical at base and head
+#          (blob 471bd3f9...), so head's test passes on base's code too.
+#
+
+ RUN  v4.1.11 C:/Users/FX-tec/Desktop/wacrm-work
+
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  04:06:18
+   Duration  627ms (transform 83ms, setup 0ms, import 115ms, tests 39ms, environment 0ms)
+
+# exit:    0

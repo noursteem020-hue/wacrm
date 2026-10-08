@@ -1,0 +1,13 @@
+
+> wacrm@0.8.0 test
+> vitest run
+
+
+ RUN  v4.1.11 <worktree>
+
+
+ Test Files  95 passed (95)
+      Tests  1110 passed | 7 skipped (1117)
+   Start at  <elided>
+   Duration  <elided>
+

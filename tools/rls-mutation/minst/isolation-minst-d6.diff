@@ -1,0 +1,7 @@
+--- isolation.sql
++++ isolation-minst-d6.sql
+@@ -1034,3 +1034,3 @@
+                     + current_setting('iso.section9b.d6_b')::bigint
+-                    + current_setting('iso.section9b.d6_other')::bigint)
++                    + 0::bigint)
+          THEN 'AGREE'

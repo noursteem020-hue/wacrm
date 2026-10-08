@@ -1,0 +1,60 @@
+# cmd:     python tools/verify-pr-body.py --pr 4
+# commit:  0f8b66e6ff0a118b92a229f69b331f9db83c84ea
+# node:    v24.21.0
+# python:  Python 3.14.7
+# branch:  docs/rls-evidence-boundaries
+# rc:      see the RE-DERIVED line below; exit code recorded by the caller
+#
+PR #4 body: 12 machine-checkable claim(s) in fenced blocks
+  source: gh pr view 4 --json body   (the PUBLISHED body)
+
+  OK   L   9  gh pr view 4 --repo noursteem020-hue/wacrm --json commits --jq '.commits|length'
+         claimed   -> 6
+         re-derived-> 6
+
+  OK   L  10  git log --format=%h feat/multi-tenant-foundation..feat/tenant-isolation -- src/lib/tenant/isolation.sql
+         claimed   -> 1bfa392 0aebad8
+         re-derived-> 1bfa392 0aebad8
+
+  OK   L  11  git log --format=%h feat/multi-tenant-foundation..feat/tenant-isolation -- src/
+         claimed   -> 1bfa392 0aebad8 d5751b7
+         re-derived-> 1bfa392 0aebad8 d5751b7
+
+  OK   L  34  git log --diff-filter=A --format=%h -- src/lib/tenant/isolation.sql
+         claimed   -> 254bf69
+         re-derived-> 254bf69
+
+  OK   L  35  git cat-file -e feat/multi-tenant-foundation:src/lib/tenant/isolation.sql; echo rc=$?
+         claimed   -> rc=0
+         re-derived-> rc=0
+
+  OK   L  40  git diff --numstat feat/multi-tenant-foundation feat/tenant-isolation -- src/lib/tenant/isolation.sql
+         claimed   -> 839  6
+         re-derived-> 839 6 src/lib/tenant/isolation.sql
+
+  OK   L  48  grep -E '^ *Test Files' docs/evidence/suite/npm-test-1bfa392.txt
+         claimed   -> Test Files 95 passed (95)
+         re-derived-> Test Files 95 passed (95)
+
+  OK   L  49  grep -E '^ *Tests ' docs/evidence/suite/npm-test-1bfa392.txt
+         claimed   -> 1110 passed | 7 skipped (1117)
+         re-derived-> Tests 1110 passed | 7 skipped (1117)
+
+  OK   L  50  grep -E '^ *Tests ' docs/evidence/suite/npm-test-tip.txt
+         claimed   -> 1110 passed | 7 skipped (1117)
+         re-derived-> Tests 1110 passed | 7 skipped (1117)
+
+  OK   L  58  grep -E '^ *Test Files' docs/evidence/suite/npm-test-1bfa392.txt
+         claimed   -> Test Files 95 passed (95)
+         re-derived-> Test Files 95 passed (95)
+
+  OK   L  59  grep -E '^ *Tests ' docs/evidence/suite/npm-test-1bfa392.txt
+         claimed   -> 1110 passed | 7 skipped (1117)
+         re-derived-> Tests 1110 passed | 7 skipped (1117)
+
+  OK   L  60  grep -E '^ *Tests ' docs/evidence/suite/npm-test-tip.txt
+         claimed   -> 1110 passed | 7 skipped (1117)
+         re-derived-> Tests 1110 passed | 7 skipped (1117)
+
+RE-DERIVED 12/12
+# exit:    0

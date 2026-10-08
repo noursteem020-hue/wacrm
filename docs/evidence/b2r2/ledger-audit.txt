@@ -1,0 +1,62 @@
+classified rows in the document : 28
+distinct FAIL lines in the run  : 20
+  OK   [function_body_true,rls_disabled,select_plus_update_true,select_using_true] required           <- `[7a] FAIL user A sees N probe row(s) outside its own accoun
+       [7a] FAIL user A sees 1 probe row(s) outside its own account (any account, not only B)
+  OK   [function_body_true,rls_disabled,select_plus_update_true,select_using_true] required           <- `[7a] FAIL user A sees N probe row(s) owned by account B -- 
+       [7a] FAIL user A sees 1 probe row(s) owned by account B -- cross-account SELECT leak
+  OK   [function_body_true,rls_disabled,select_plus_update_true,select_using_true] allowed_collateral <- `[7b] FAIL user B sees N probe row(s) outside its own accoun
+       [7b] FAIL user B sees 1 probe row(s) outside its own account (any account, not only A)
+  OK   [function_body_true,rls_disabled,select_plus_update_true,select_using_true] allowed_collateral <- `[7b] FAIL user B sees N probe row(s) owned by account A -- 
+       [7b] FAIL user B sees 1 probe row(s) owned by account A -- cross-account SELECT leak
+  OK   [function_body_true,insert_with_check_true,rls_disabled] required           <- `[8] FAIL cross-account INSERT was ALLOWED: …`
+       [8] FAIL cross-account INSERT was ALLOWED: user A wrote a row into account B and the WITH CHECK policy d
+  OK   [function_body_true,rls_disabled,select_plus_update_true,update_using_true,update_with_check_true] allowed_collateral <- `[9a] FAIL cross-account UPDATE left N row(s) owned by accou
+       [9a] FAIL cross-account UPDATE left 3 row(s) owned by account B and 0 row(s) owned by an account that is
+  OK   [function_body_true,rls_disabled,select_plus_update_true] required           <- `[9a] FAIL cross-account UPDATE was ALLOWED (…, N row(s) act
+       [9a] FAIL cross-account UPDATE was ALLOWED (ALLOWED rows=1, 1 row(s) actually moved): user A re-pointed 
+  OK   [function_body_true,rls_disabled,select_plus_update_true] required           <- `[9a] FAIL cross-account UPDATE with no account filter was A
+       [9a] FAIL cross-account UPDATE with no account filter was ALLOWED (ALLOWED rows=2, 2 row(s) actually mov
+  OK   [update_with_check_true] required           <- `[9a] FAIL drift: after the unscoped UPDATE account A owns N
+       [9a] FAIL drift: after the unscoped UPDATE account A owns 0 of its 2 seeded probe row(s) (ALLOWED rows=2
+  OK   [function_body_true,rls_disabled,select_plus_update_true,update_using_true] required           <- `[9a] FAIL drift: after the unscoped UPDATE account A owns N
+       [9a] FAIL drift: after the unscoped UPDATE account A owns 0 of its 2 seeded probe row(s) (ALLOWED rows=5
+  OK   [update_policy_missing] required           <- `[9a] FAIL drift: the unscoped UPDATE touched N row(s), the 
+       [9a] FAIL drift: the unscoped UPDATE touched 0 row(s), the baseline is 2. A WIDER policy hands over othe
+  OK   [function_body_true,rls_disabled,select_plus_update_true,update_using_true] required           <- `[9a] FAIL drift: the unscoped UPDATE touched N row(s), the 
+       [9a] FAIL drift: the unscoped UPDATE touched 5 row(s), the baseline is 2. A WIDER policy hands over othe
+  OK   [update_using_true] required           <- `[9a] FAIL leak: an unscoped UPDATE touched N row(s) not own
+       [9a] FAIL leak: an unscoped UPDATE touched 3 row(s) not owned by the caller (counted as postgres, before
+  OK   [function_body_true,rls_disabled,select_plus_update_true] required           <- `[9a] FAIL leak: an unscoped UPDATE touched N row(s) not own
+       [9a] FAIL leak: an unscoped UPDATE touched 4 row(s) not owned by the caller (counted as postgres, before
+  OK   [update_with_check_true] required           <- `[9a] FAIL leak: the unscoped UPDATE moved N probe row(s) in
+       [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=2, 2 row(s) writte
+  OK   [function_body_true,rls_disabled,select_plus_update_true,update_using_true] required           <- `[9a] FAIL leak: the unscoped UPDATE moved N probe row(s) in
+       [9a] FAIL leak: the unscoped UPDATE moved 3 probe row(s) into account B (ALLOWED rows=5, 5 row(s) writte
+  OK   [update_using_true,update_with_check_true] allowed_collateral <- `[9a] FAIL positive control after: …`  (+1 more row)
+       [9a] FAIL positive control after: user A could not edit its OWN row after the negative probes (ALLOWED r
+  OK   [update_policy_missing] required           <- `[9a] FAIL positive control before: …`
+       [9a] FAIL positive control before: an in-place edit of user A's OWN row did not succeed (ALLOWED rows=0)
+  OK   [function_body_true,rls_disabled,select_plus_update_true] allowed_collateral <- `[9a] FAIL the positive-control row is no longer owned by ac
+       [9a] FAIL the positive-control row is no longer owned by account A (rows found: 0), so the control is no
+  OK   [delete_using_true,function_body_true,rls_disabled] required           <- `[9b] FAIL cross-account DELETE: account B's probe row did n
+       [9b] FAIL cross-account DELETE: account B's probe row did not survive (rows found as postgres: 0, expect
+UNCLASSIFIED                    : 0
+  DEFERRED [required_untested -> G4 `select_using_false] `[7a] FAIL user A reads 0 of its own rows`
+       named missing mutation: G4 `select_using_false
+  EXEMPT [required, proven by M-inst] `[9a] FAIL instrument: ROW_COUNT and the counted rows disagr
+       M-inst
+  EXEMPT [required, proven by M-inst] `[9a] FAIL instrument: the unscoped UPDATE's ROW_COUNT and t
+       M-inst (w6 variant)
+  DEFERRED [required_untested -> G5 `delete_policy_missing] `[9b] FAIL positive control before: …`
+       named missing mutation: G5 `delete_policy_missing
+  EXEMPT [required, proven by M-inst] `[9b] FAIL instrument: the unscoped DELETE's ROW_COUNT and t
+       M-inst (`isolation-minst-d6.sql`)
+SILENT REQUIRED ROWS            : 0
+DEFERRED required_untested      : 2
+   ~~ `[7a] FAIL user A reads 0 of its own rows`
+      named gap: G4 `select_using_false -- the mutation that would exercise it is not in
+      this manifest. Accepted as a KNOWN gap, not as a secondary signal.
+   ~~ `[9b] FAIL positive control before: …`
+      named gap: G5 `delete_policy_missing -- the mutation that would exercise it is not in
+      this manifest. Accepted as a KNOWN gap, not as a secondary signal.
+MALFORMED required_untested     : 0

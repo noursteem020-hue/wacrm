@@ -1032,7 +1032,7 @@ BEGIN
                      + current_setting('iso.section9b.pre_other')::bigint)
                  - (current_setting('iso.section9b.d6_a')::bigint
                     + current_setting('iso.section9b.d6_b')::bigint
-                    + current_setting('iso.section9b.d6_other')::bigint)
+                    + 0::bigint)
          THEN 'AGREE'
          ELSE 'DISAGREE rows=' || v_n ||
               ' census_before=' || (current_setting('iso.section9b.pre_a')::bigint

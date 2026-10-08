@@ -1,0 +1,10 @@
+BEGIN
+DROP POLICY
+CREATE POLICY
+COMMIT
+                                        ?column?                                         
+-----------------------------------------------------------------------------------------
+ restored contacts_delete_qual=is_account_member(account_id, 'agent'::account_role_enum)
+(1 row)
+
+EXIT=0

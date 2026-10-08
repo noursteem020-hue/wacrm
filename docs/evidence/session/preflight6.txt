@@ -1,0 +1,102 @@
+# cmd:     python tools/rls-mutation/preflight6.py
+# commit:  0f8b66e6ff0a118b92a229f69b331f9db83c84ea
+# node:    v24.21.0
+# python:  Python 3.14.7
+# branch:  docs/rls-evidence-boundaries
+# scope:   T1..T4 only; does not touch the committed database state
+#
+==============================================================================
+PREFLIGHT v6  
+==============================================================================
+baseline fingerprint : bfae0aea057682e5403f70c94f0b5f61
+v5 baseline token    : fb8eda83289797ce49e634e44dc35091  (extended by pg_proc.proargdefaults)
+entries parsed       : 10
+  tool self-check: fingerprint stable across two reads (bfae0aea057682e5403f70c94f0b5f61)
+  T1  delete one classified row; expect exactly the lines it covered
+  T1 PASS
+  T2  add an undeclared line; expect it to be rejected
+  T2 PASS
+  T3  declare a required row no mutation fires; expect SILENT REQUIRED 1
+  T3 PASS
+  T4  blank the gap name on a required_untested row; expect MALFORMED 1
+  T4 PASS
+run order            : clean_baseline -> rls_disabled -> update_using_true -> update_with_check_true -> select_using_true -> insert_with_check_true -> select_plus_update_true -> update_policy_missing -> delete_using_true -> function_body_true -> clean_baseline
+  OK  clean_baseline first and last, function_body_true immediately before the final clean_baseline, all 10 manifest entries walked once plus the closing baseline bookend
+  guard 4b substrings  : mandated 'SECURITY DEFINER'  |  added 'SET search_path', 'STABLE'
+
+-- capture --
+  capture: pg_get_functiondef over base64 = 758 chars, 20 CR, sha256 607e15397478d7cf
+  transport: base64, because -q -A -t rewrites the 20 CRLF pairs in prosrc to LF and returns 738 of 758 bytes
+  GUARD 4a  capture from pg_proc for oid = 'public.is_account_member(uuid,account_role_enum)'::regprocedure
+    md5(prosrc)      = 026fa63f24c5f54584758c4f5d314408
+    prosecdef        = true   proconfig = search_path=public
+    provolatile      = s    proparallel = u   prokind = f
+    proowner         = postgres    prolang = 14
+    proargnames      = target_account_id,min_role
+    has DEFAULT arg  = true   (proargdefaults is inside the hash)
+    prosrc length    = 510 chars, 20 of them CR (CR must be present, or the capture transport is lossy)
+    OK md5(prosrc) == 026fa63f24c5f54584758c4f5d314408
+    OK dependent pg_policies rows referencing is_account_member = 98
+  clean_baseline           stmts=0 sqlstate=-  PASS  (declared no-op)
+
+  rls_disabled             path A  apply+restore  stmts=2 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  rls_disabled             path B  restore alone   stmts=1 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  rls_disabled             PASS
+
+  update_using_true        path A  apply+restore  stmts=4 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  update_using_true        path B  restore alone   stmts=2 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  update_using_true        PASS
+
+  update_with_check_true   path A  apply+restore  stmts=4 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  update_with_check_true   path B  restore alone   stmts=2 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  update_with_check_true   PASS
+
+  select_using_true        path A  apply+restore  stmts=4 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  select_using_true        path B  restore alone   stmts=2 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  select_using_true        PASS
+
+  insert_with_check_true   path A  apply+restore  stmts=4 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  insert_with_check_true   path B  restore alone   stmts=2 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  insert_with_check_true   PASS
+
+  select_plus_update_true  path A  apply+restore  stmts=8 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  select_plus_update_true  path B  restore alone   stmts=4 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  select_plus_update_true  PASS
+
+  update_policy_missing    path A  apply+restore  stmts=3 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  update_policy_missing    path B  restore alone   stmts=2 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  update_policy_missing    PASS
+
+  delete_using_true        path A  apply+restore  stmts=4 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  delete_using_true        path B  restore alone   stmts=2 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  delete_using_true        PASS
+
+  GUARD 4b  OK   captured definition is non-empty (758 chars, 20 CR preserved)
+  GUARD 4b  OK   captured definition contains 'SECURITY DEFINER' (mandated)
+  GUARD 4b  OK   captured definition contains 'SET search_path' (added: measured present, and dropping it changes isolation instead of failing)
+  GUARD 4b  OK   captured definition contains 'STABLE' (added: measured present, and dropping it changes isolation instead of failing)
+  GUARD 4b  OK   capture is exactly 1 statement by the dollar-quote-aware splitter (a semicolon inside the body is not a boundary)
+  GUARD 4b  OK   capture ends with the closing dollar tag
+  function_body_true       restore source = pg_get_functiondef captured verbatim (759 chars incl. terminator)
+  function_body_true       apply is CREATE OR REPLACE (DROP is impossible: 98 dependent policies)
+  function_body_true       path A  apply+restore  stmts=1 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  function_body_true       path B  restore alone   stmts=1 in-txn fp bfae0aea057682e5 ok md5=026fa63f24c5f545 secdef=true config=search_path=public deps=98
+  function_body_true       PASS
+
+  clean_baseline           stmts=0 sqlstate=-  PASS  (declared no-op)
+
+
+==============================================================================
+DROP POLICY check: 7 entries whose apply drops a policy
+  update_using_true        OK   1x DROP POLICY IF EXISTS, 0 bare DROP POLICY
+  update_with_check_true   OK   1x DROP POLICY IF EXISTS, 0 bare DROP POLICY
+  select_using_true        OK   1x DROP POLICY IF EXISTS, 0 bare DROP POLICY
+  insert_with_check_true   OK   1x DROP POLICY IF EXISTS, 0 bare DROP POLICY
+  select_plus_update_true  OK   2x DROP POLICY IF EXISTS, 0 bare DROP POLICY
+  update_policy_missing    OK   1x DROP POLICY IF EXISTS, 0 bare DROP POLICY
+  delete_using_true        OK   1x DROP POLICY IF EXISTS, 0 bare DROP POLICY
+committed state unchanged after the whole run: bfae0aea057682e5403f70c94f0b5f61
+committed is_account_member in a read-only txn: 026fa63f24c5f54584758c4f5d314408/true/search_path=public/98 rc=0
+==============================================================================
+PREFLIGHT PASSED
+# exit:    0
