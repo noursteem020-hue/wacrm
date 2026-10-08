@@ -1,0 +1,8 @@
+PR #2 body: 1 machine-checkable claim(s) in fenced blocks
+  source: gh pr view 2 --json body   (the PUBLISHED body)
+
+  OK   L  13  git rev-list --count 9e1773c..e0d31ab
+         claimed   -> 36
+         re-derived-> 36
+
+RE-DERIVED 1/1

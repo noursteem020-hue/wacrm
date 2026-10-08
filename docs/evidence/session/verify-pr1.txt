@@ -1,0 +1,6 @@
+PR #1 body: 0 machine-checkable claim(s) in fenced blocks
+  source: gh pr view 1 --json body   (the PUBLISHED body)
+
+FAIL no `cmd -> result` line found. Either the description carries no
+  evidence in that form, or it uses a form this tool cannot read.
+  Either way it is not verified, and that is not the same as verified.
