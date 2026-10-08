@@ -7,12 +7,9 @@
 #          mutation result in mutation-resolve-head.txt proves nothing.
 #
 
- RUN  v4.1.11 C:/Users/FX-tec/Desktop/wt-pr1
 
 
  Test Files  1 passed (1)
       Tests  10 passed (10)
-   Start at  06:23:56
-   Duration  447ms (transform 61ms, setup 0ms, import 86ms, tests 15ms, environment 0ms)
 
 # exit:    0

@@ -7,7 +7,6 @@
 # purpose: the added test must be able to fail. This is the mutation that makes it fail.
 #
 
- RUN  v4.1.11 C:/Users/FX-tec/Desktop/wt-pr1
 
  ❯ src/lib/tenant/resolve.test.ts (10 tests | 4 failed) 15ms
      × extracts the subdomain from crm.acme.com 7ms
@@ -84,7 +83,5 @@ Received: "com"
 
  Test Files  1 failed (1)
       Tests  4 failed | 6 passed (10)
-   Start at  06:23:44
-   Duration  466ms (transform 69ms, setup 0ms, import 96ms, tests 15ms, environment 0ms)
 
 # exit:    1
