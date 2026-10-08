@@ -76,7 +76,7 @@ git cat-file -e 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/middleware.ts && ec
 git cat-file -e 9e1773c709dc01cc209612b403ed0c90d741798d:src/middleware.ts; echo "rc=$?" -> rc=128
 ```
 
-The full list is in @url:`https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/`docs/evidence/pr1/pr1-filelist.txt, one path per line with
+The full list is in [docs/evidence/pr1/pr1-filelist.txt](https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/docs/evidence/pr1/pr1-filelist.txt), one path per line with
 its own header. It is not inlined here because the gate compares
 whitespace-separated tokens, and a path list contains slashes.
 
@@ -125,10 +125,10 @@ Restored, and the worktree is clean afterwards:
 ```
 ```
 
-Both runs, each with its own header: @url:`https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/`docs/evidence/pr1/mutation-resolve-head.txt
-(the mutation, exit 1) and @url:`https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/`docs/evidence/pr1/mutation-resolve-control.txt (the
+Both runs, each with its own header: [docs/evidence/pr1/mutation-resolve-head.txt](https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/docs/evidence/pr1/mutation-resolve-head.txt)
+(the mutation, exit 1) and [docs/evidence/pr1/mutation-resolve-control.txt](https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/docs/evidence/pr1/mutation-resolve-control.txt) (the
 control, exit 0). The test runs at head-sha are in
-@url:`https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/`docs/evidence/pr1/tests-at-headsha.txt.
+[docs/evidence/pr1/tests-at-headsha.txt.](https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/docs/evidence/pr1/tests-at-headsha.txt.)
 
 ## Why there is no base-vs-head break-test
 
@@ -194,7 +194,7 @@ cd ../wt-pr1 && git show 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/curren
 ```
 
 Restored with `git -C ../wt-pr1 checkout -- .`; the worktree is clean afterwards.
-The runs are in @url:`https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/`docs/evidence/pr1/currency-basetest-on-head-code.txt.
+The runs are in [docs/evidence/pr1/currency-basetest-on-head-code.txt.](https://github.com/noursteem020-hue/wacrm/blob/9668f0a410a339c350352336fd555975d2039960/docs/evidence/pr1/currency-basetest-on-head-code.txt.)
 
 ```
 cd ../wt-pr1 && test -z "$(git status --porcelain)" && echo clean || echo dirty -> clean
