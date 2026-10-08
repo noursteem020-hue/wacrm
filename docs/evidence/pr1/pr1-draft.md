@@ -196,6 +196,7 @@ cd ../wt-pr1 && git show 45e80ad9e23b91f5c02ab9f935edbae67810e59d:src/lib/curren
 Restored with `git -C ../wt-pr1 checkout -- .`; the worktree is clean afterwards.
 The runs are in `docs/evidence/pr1/currency-basetest-on-head-code.txt`.
 
+```
 cd ../wt-pr1 && test -z "$(git status --porcelain)" && echo clean || echo dirty -> clean
 ```
 
