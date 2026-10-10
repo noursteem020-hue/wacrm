@@ -1,5 +1,5 @@
 -- ============================================================
--- 043_tenant_foundation.sql — Tenant slug + operator tenant registry
+-- 047_tenant_foundation.sql — Tenant slug + operator tenant registry
 --
 -- Adds a stable, human-readable identifier to each account so a
 -- request can be attributed to a tenant, and a separate operator-facing

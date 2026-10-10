@@ -89,7 +89,7 @@ DROP INDEX idx_accounts_one_per_owner;
 
 **Do not work around the collision case.** Two tenants cannot share a subdomain
 label: `accounts_slug_key` is a unique index (READ:
-`043_tenant_foundation.sql:204`), and the second insert fails on it. `MEASURED`
+`047_tenant_foundation.sql:204`), and the second insert fails on it. `MEASURED`
 on 2026-10-03 against local Postgres (measured by the author on a development database; not independently re-verified) — two accounts, two distinct owners, the
 same slug:
 
@@ -99,11 +99,11 @@ DETAIL:  Key (slug)=(acme) already exists.
 ```
 
 That is the behaviour the constraint produces, and it is the intended one —
-`INFERRED` from `043_tenant_foundation.sql:204` (`CREATE UNIQUE INDEX
+`INFERRED` from `047_tenant_foundation.sql:204` (`CREATE UNIQUE INDEX
 accounts_slug_key`), not executed as a test. Resolve it by choosing a different
 slug, not by dropping or deferring the index. The same constraint bounds the
 migration's auto-assigned slugs to the 64 `name-N` variants per basename (READ:
-`generate_series(1, 64)` at `043_tenant_foundation.sql:130`), so a 65th
+`generate_series(1, 64)` at `047_tenant_foundation.sql:130`), so a 65th
 same-named account needs an explicit slug. That bound is what the SQL says; it
 has not been exercised with 65 colliding rows.
 
@@ -343,7 +343,7 @@ no database command was run for it and no client-role request was made.
 
 
 `tenants` is likewise RLS-enabled with zero policies (READ:
-`043_tenant_foundation.sql:225`, no `CREATE POLICY ... ON tenants` in any
+`047_tenant_foundation.sql:225`, no `CREATE POLICY ... ON tenants` in any
 migration), which is why owner-only visibility there would be a new policy
 rather than an existing one. Nothing in `src/` queries `tenants` (MEASURED by
 grep, 2026-10-03), so no reader depends on it today.
@@ -443,12 +443,12 @@ A user who signs up through the app gets an account from the `handle_new_user`
 trigger (READ: `handle_new_user` is defined in `001_initial_schema.sql` and
 re-referenced in `017`/`018`/`034`/`043`), and that account has **no slug**.
 `INFERRED` from the migrations, not measured at runtime: no migration assigns
-`accounts.slug` from the trigger — `043_tenant_foundation.sql` backfills the
+`accounts.slug` from the trigger — `047_tenant_foundation.sql` backfills the
 column once, at migration time — so the trigger cannot supply a slug for a
 signup that happens after that backfill. The slug backfill in migration 043 only
 assigns slugs to accounts that existed when it ran; it does not provision for
 future signups. Until that is built, every new tenant needs the manual
-provisioning step above. `043_tenant_foundation.sql:115-116` says the same thing
+provisioning step above. `047_tenant_foundation.sql:115-116` says the same thing
 about itself: "There is no provisioning path that assigns a slug today (no
 trigger, no RPC, no application write touches accounts.slug)".
 
