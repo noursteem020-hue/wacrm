@@ -49,11 +49,11 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
     );
   });
 
-  it('requires content_text for text messages', async () => {
+  it('requires a text body for text messages', async () => {
     await expectSendError(
       { ...base, messageType: 'text' },
       400,
-      /content_text is required/
+      /text body is required/
     );
   });
 

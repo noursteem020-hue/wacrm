@@ -138,7 +138,7 @@ export function validateSendMessageParams(params: {
   if (messageType === 'text' && !contentText) {
     throw new SendMessageError(
       'bad_request',
-      'content_text is required for text messages',
+      'text body is required for text messages',
       400
     );
   }
