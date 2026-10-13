@@ -6,6 +6,16 @@
 // supports `?search=` (name/phone) and `?tag=<tagId>` filters. Create
 // is find-or-create by phone: an existing match returns 200 with
 // `created: false`; a new row returns 201 with `created: true`.
+//
+// POST contract notes (measured E2E, 2026-10):
+//   - `phone` must be international format with a leading `+`
+//     (e.g. +14155512345). It is stored in canonical normalized form
+//     (country code explicit, see parseInternationalPhone, issue #586),
+//     so the persisted row may drop the `+`.
+//   - Unknown fields (e.g. first_name/last_name) are ignored by
+//     design - this API uses a single `name` field.
+//   - When `name` is omitted the contact falls back to the normalized
+//     phone as its display name (the column is NOT NULL).
 // ============================================================
 
 import { requireApiKey } from '@/lib/auth/api-context';
