@@ -47,6 +47,7 @@ export const CURRENCIES: CurrencyOption[] = [
   { code: "SGD", label: t("SGD"), symbol: "S$" },
   { code: "MXN", label: t("MXN"), symbol: "$" },
   { code: "COP", label: t("COP"), symbol: "$" },
+  { code: "SAR", label: t("SAR"), symbol: "﷼" },
 ];
 
 /**
