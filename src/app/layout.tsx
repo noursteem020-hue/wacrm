@@ -91,10 +91,14 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  // Arabic (and any future RTL locale) renders right-to-left. next-intl
+  // does not export a direction helper, so keep the list here.
+  const dir: 'rtl' | 'ltr' = locale === 'ar' ? 'rtl' : 'ltr';
 
   return (
     <html
       lang={locale}
+      dir={dir}
       data-theme={DEFAULT_THEME}
       data-mode={DEFAULT_MODE}
       className={`${inter.variable} h-full antialiased`}
