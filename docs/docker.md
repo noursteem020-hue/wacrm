@@ -37,7 +37,7 @@ is included.
   build time**. They are passed as Docker build args by
   `docker-compose.yml`. If you change any of them, rebuild:
   `docker compose --env-file .env.local up --build -d`. This includes
-  `NEXT_PUBLIC_APP_LOCALE` (`en | ko | pt | es`), so the UI language is
+  `NEXT_PUBLIC_APP_LOCALE` (`en | ko | pt | es | ar`), so the UI language is
   fixed per image.
 - Everything else (`SUPABASE_SERVICE_ROLE_KEY`, `ENCRYPTION_KEY`,
   `META_APP_SECRET`, …) is read at **runtime** from `.env.local` via
